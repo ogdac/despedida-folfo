@@ -220,6 +220,14 @@ a{color:var(--accent);word-break:break-all}
 .lnk .li{font-size:20px}
 .lnk .ln{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lnk .la{color:var(--accent);font-size:18px}
+.photo.multi{background:var(--surface-2)}
+.ph-layer{position:absolute;inset:0;background:center/cover no-repeat;opacity:0;transition:opacity .7s ease}
+.ph-layer.on{opacity:1}
+.photo.multi > .dest{position:relative;z-index:1}
+.photo .favbadge,.photo .nph{z-index:2}
+.photo .dots{position:absolute!important;right:12px;bottom:16px;display:flex;gap:5px;z-index:2}
+.photo .dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.5);box-shadow:0 0 3px rgba(0,0,0,.5);transition:all .3s}
+.photo .dots i.on{width:16px;border-radius:4px;background:#fff}
 /* ===== Tema: dorado oscuro + cristal + botones neumórficos ===== */
 :root,:root:not([x]){--bg:#121110;--surface:#1c1a18;--surface-2:#262320;--ink:#f3ece0;--muted:#a89f90;--line:#332f2a;
 --accent:#d4a857;--accent-ink:#1a1610;--accent-soft:#33291a;--like:#8fc9a3;--like-soft:#1d2c22;--fav:#d4a857;--fav-soft:#33291a;--hero:#0c0b0a;--hero-ink:#f3ece0;
@@ -469,6 +477,7 @@ if (configured) {
 /* ---------- estado ---------- */
 const S = { me: ls.get("despedida_nombre") || "", pinHash: ls.get("despedida_pin") || "", plans: [], votes: [], comments: [], tab: "plans", openId: null, editId: null, photos: [] };
 const meKey = () => keyOf(S.me);
+S.cardIdx = {};
 /* Administrador: el usuario "Diego" con su PIN (se guarda solo la huella del PIN, nunca el PIN) */
 const ADMIN = { key: "diego", pinHash: "efd5b04761c349df275998a500568ac2048b554723531f1e3fb5e961e182c417" };
 const canManage = p => p.authorKey === meKey() || isAdmin();
@@ -526,7 +535,10 @@ function renderPlans(){
     const liked = (mv.likes||[]).includes(p.id), fav = mv.fav === p.id;
     const nCom = S.comments.filter(c => c.planId === p.id).length;
     const cost = costInfo(p);
-    const photo = img(p)
+    const phs = photosOf(p), ci = (S.cardIdx[p.id] || 0) % Math.max(phs.length, 1);
+    const photo = phs.length > 1
+      ? `<div class="photo multi" data-pid="${p.id}" data-n="${phs.length}">${phs.map((u, k) => `<div class="ph-layer${k === ci ? " on" : ""}" style="background-image:url('${u}')"></div>`).join("")}<span class="dots">${phs.map((_, k) => `<i class="${k === ci ? "on" : ""}"></i>`).join("")}</span>`
+      : img(p)
       ? `<div class="photo" style="background-image:url('${img(p)}')">`
       : `<div class="photo empty"><span class="big">${esc((p.destination||"?")[0].toUpperCase())}</span>`;
     return `<article class="card tap${enter ? " enter" : ""}" data-open="${p.id}" style="--d:${Math.min(idx, 8) * 90}ms">
@@ -696,6 +708,19 @@ const spot = e => { const c = e.target.closest && e.target.closest(".card"); if 
   clearTimeout(c._lt); c._lt = setTimeout(() => c.classList.remove("lit"), 900); };
 document.addEventListener("pointermove", spot, { passive: true });
 document.addEventListener("pointerdown", spot, { passive: true });
+
+/* ---------- fotos de las tarjetas: pasan solas cada 2 s ---------- */
+setInterval(() => {
+  if (document.hidden || anyModal() || S.tab !== "plans") return;
+  const vh = innerHeight;
+  document.querySelectorAll(".photo.multi").forEach(ph => {
+    const r = ph.getBoundingClientRect(); if (r.bottom < 0 || r.top > vh) return;   // solo las que se ven en pantalla
+    const n = +ph.dataset.n, id = ph.dataset.pid, next = ((S.cardIdx[id] || 0) + 1) % n;
+    S.cardIdx[id] = next;
+    ph.querySelectorAll(".ph-layer").forEach((l, k) => l.classList.toggle("on", k === next));
+    ph.querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === next));
+  });
+}, 2000);
 
 /* ---------- deslizar hacia abajo para cerrar ---------- */
 function swipeToClose(ov, panel, fromTopOnly){
