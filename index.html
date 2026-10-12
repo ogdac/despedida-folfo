@@ -204,10 +204,10 @@ a{color:var(--accent);word-break:break-all}
 .confetti i{position:absolute;top:-20px;border-radius:2px;animation:fall linear forwards}
 @keyframes fall{to{transform:translate(var(--dx),110vh) rotate(var(--r));opacity:.9}}
 /* 6 · foco de luz */
-.card{position:relative}
-.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .35s;
+.card .body{position:relative}
+.card .body::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;
   background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),rgba(255,226,160,.20),transparent 70%)}
-.card.lit::after{opacity:1}
+.card.lit .body::after{opacity:1}
 @media (prefers-reduced-motion: reduce){.card.enter,.rank.lead::before{animation:none}.tab-ind{transition:none}}
 /* ===== Tema: dorado oscuro + cristal + botones neumórficos ===== */
 :root,:root:not([x]){--bg:#121110;--surface:#1c1a18;--surface-2:#262320;--ink:#f3ece0;--muted:#a89f90;--line:#332f2a;
@@ -656,7 +656,7 @@ function confetti(){
   document.body.appendChild(box); setTimeout(() => box.remove(), 3400);
 }
 // 6 foco de luz que sigue al dedo en las tarjetas
-const spot = e => { const c = e.target.closest && e.target.closest(".card"); if (!c) return; const r = c.getBoundingClientRect();
+const spot = e => { const c = e.target.closest && e.target.closest(".card"); if (!c) return; const r = (c.querySelector(".body") || c).getBoundingClientRect();
   c.style.setProperty("--mx", (e.clientX - r.left) + "px"); c.style.setProperty("--my", (e.clientY - r.top) + "px"); c.classList.add("lit");
   clearTimeout(c._lt); c._lt = setTimeout(() => c.classList.remove("lit"), 900); };
 document.addEventListener("pointermove", spot, { passive: true });
