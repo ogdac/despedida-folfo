@@ -607,9 +607,11 @@ function shareWhatsApp(id, isNew){
   $("#waIntro").textContent = isNew ? "Avisa al grupo para que entren a votarlo. Se abrirá WhatsApp con este mensaje ya escrito:" : "Se abrirá WhatsApp con este mensaje ya escrito. Elige el grupo y envíalo:";
   const own = !p.authorKey || p.authorKey === meKey();
   const url = location.origin + location.pathname + "?plan=" + encodeURIComponent(id);
-  const cost = costInfo(p);
-  const msg = (own ? `🎉 He propuesto un plan para la despedida de Folfo:` : `🎉 Mira este plan de ${p.authorName} para la despedida de Folfo:`) + `\n*${p.title}* (📍 ${p.destination})` +
-    (cost ? `\n✈️🏨 Vuelo + alojamiento: ${cost} por persona` : "") + `\n\n¡Entra a verlo y vota! 👇\n${url}`;
+  const c = p.costs || {}; let lo = c.min ?? c.max, hi = c.max ?? c.min;
+  if (lo != null && lo > hi) [lo, hi] = [hi, lo];
+  const price = lo == null ? "" : (lo === hi ? `${lo.toLocaleString("es-ES")} €` : `${lo.toLocaleString("es-ES")}–${hi.toLocaleString("es-ES")} €`);
+  const msg = (own ? `🎉 Mi propuesta para la despedida:` : `🎉 Propuesta de ${p.authorName} para la despedida:`) +
+    `\n*${p.title}* 📍 ${p.destination}` + (price ? `\n✈️🏨 ${price}` : "") + `\n👉 Vota aquí: ${url}`;
   $("#waMsg").textContent = msg;
   $("#waBtn").href = "https://wa.me/?text=" + encodeURIComponent(msg);
   openOv("#waOv");
