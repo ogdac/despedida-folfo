@@ -38,7 +38,8 @@ h1,h2,h3{font-family:"Bricolage Grotesque",Inter,sans-serif;margin:0;letter-spac
 .sticker{position:absolute;right:-4px;top:-6px;height:158px;transform:rotate(6deg);filter:drop-shadow(0 6px 14px rgba(0,0,0,.45));animation:bob 3.2s ease-in-out infinite;transform-origin:50% 100%;pointer-events:none}
 @keyframes bob{0%,100%{transform:rotate(6deg) translateY(0)}50%{transform:rotate(2deg) translateY(-4px)}}
 @media (prefers-reduced-motion: reduce){.sticker{animation:none}}
-.welcome-st{height:120px;display:block;margin:-70px auto 4px;filter:drop-shadow(0 6px 12px rgba(0,0,0,.25));transform:rotate(-4deg)}
+.ring{display:inline-block;background:var(--fav);color:#1b1d2b;font-weight:700;font-size:13px;padding:4px 12px;border-radius:999px;margin:-14px 0 6px;position:relative;transform:rotate(-3deg)}
+.welcome-st{height:190px;display:block;margin:-130px auto 0;filter:drop-shadow(0 6px 12px rgba(0,0,0,.25));transform:rotate(-4deg)}
 .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.14em;opacity:.7;font-weight:600}
 .hero h1{font-size:34px;line-height:1.05;margin-top:8px;font-weight:800}
 .hero h1 span{color:var(--accent)}
@@ -77,6 +78,7 @@ h1,h2,h3{font-family:"Bricolage Grotesque",Inter,sans-serif;margin:0;letter-spac
 .btn.danger{color:var(--danger);border-color:var(--danger);background:transparent}
 .count{font-variant-numeric:tabular-nums;opacity:.8}
 
+.es-st{width:150px;display:block;margin:0 auto 10px;transform:rotate(-5deg);filter:drop-shadow(0 6px 14px rgba(0,0,0,.25));animation:bob 3.2s ease-in-out infinite}
 .empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
 .empty-state .emoji{font-size:44px}
 
@@ -153,7 +155,7 @@ a{color:var(--accent);word-break:break-all}
 .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 .welcome{align-items:center}
-.welcome .sheet{overflow:visible;margin-top:60px;border-radius:24px;margin:76px 16px 16px;width:calc(100% - 32px);text-align:center;padding:26px 20px}
+.welcome .sheet{overflow:visible;margin-top:60px;border-radius:24px;margin:130px 16px 16px;width:calc(100% - 32px);text-align:center;padding:26px 20px}
 .welcome h2{font-size:26px;margin-top:6px}
 </style>
 </head>
@@ -188,7 +190,7 @@ a{color:var(--accent);word-break:break-all}
 <!-- Welcome -->
 <div class="overlay welcome" id="welcome">
   <div class="sheet">
-    <img class="welcome-st" src="folfo.webp" alt="">
+    <img class="welcome-st" src="pareja.webp" alt=""><div class="ring">💍 ¡Que se casa!</div>
     <h2>¿Quién eres?</h2>
     <p class="hint">La primera vez elige tu nombre y un PIN de 4 cifras. Las siguientes veces entra con los mismos.</p>
     <input type="text" id="nameInput" maxlength="30" placeholder="Tu nombre" autocomplete="username">
@@ -359,7 +361,7 @@ function render(){
 function renderPlans(){
   const el = $("#plansView");
   if (!S.plans.length) {
-    el.innerHTML = `<div class="empty-state"><div class="emoji">🗺️</div><p>Todavía no hay planes.<br>¡Sé el primero en proponer uno!</p></div>`;
+    el.innerHTML = `<div class="empty-state"><img class="es-st" src="busto.webp" alt=""><p>Todavía no hay planes.<br>¡Sé el primero en proponer uno!</p></div>`;
     return;
   }
   const t = tallies(), mv = myVote();
