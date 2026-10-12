@@ -563,7 +563,7 @@ function renderDetail(){
     $("#gcount").textContent = `${Math.min(S.galIdx + 1, n)} / ${n}`;
   }, { passive: true });
   if (n < 2) return;
-  // pase automático cada 5 s; si la persona toca la galería, se pausa 10 s
+  // pase automático cada 2,5 s; si la persona toca la galería, se pausa 10 s
   const pause = () => { S.galHold = Date.now() + 10000; };
   ["touchstart","pointerdown","wheel"].forEach(ev => gal.addEventListener(ev, pause, { passive: true }));
   S.galTimer = setInterval(() => {
@@ -571,7 +571,7 @@ function renderDetail(){
     if (document.hidden || $("#lbOv").classList.contains("open") || Date.now() < (S.galHold || 0)) return;
     const next = (Math.round(gal.scrollLeft / gal.clientWidth) + 1) % n;
     gal.scrollTo({ left: next * gal.clientWidth, behavior: "smooth" });
-  }, 5000);
+  }, 2500);
 }
 
 /* ---------- visor de fotos ---------- */
