@@ -347,6 +347,9 @@ if (configured) {
 /* ---------- estado ---------- */
 const S = { me: ls.get("despedida_nombre") || "", pinHash: ls.get("despedida_pin") || "", plans: [], votes: [], comments: [], tab: "plans", openId: null, editId: null, photos: [] };
 const meKey = () => keyOf(S.me);
+/* Administrador: el usuario "Diego" con su PIN (se guarda solo la huella del PIN, nunca el PIN) */
+const ADMIN = { key: "diego", pinHash: "efd5b04761c349df275998a500568ac2048b554723531f1e3fb5e961e182c417" };
+const isAdmin = () => !!S.me && meKey() === ADMIN.key && S.pinHash === ADMIN.pinHash;
 
 const loaded = { plans: false, votes: false, comments: false };
 store.watch("plans", d => { S.plans = d; loaded.plans = true; render(); });
@@ -376,7 +379,7 @@ function render(){
   if (S.me && loaded.plans && loaded.votes && loaded.comments) { if (!S.newsDone) computeNews(); if (S.deepLink) openDeepLink(); }
   renderNews();
   $("#meBar").hidden = !S.me;
-  $("#meName").textContent = S.me ? `Hola, ${S.me} 👋` : "";
+  $("#meName").textContent = S.me ? `Hola, ${S.me} 👋${isAdmin() ? " · 🛡️ Admin" : ""}` : "";
   $("#tabPlans").setAttribute("aria-selected", S.tab === "plans");
   $("#tabRank").setAttribute("aria-selected", S.tab === "rank");
   $("#plansView").hidden = S.tab !== "plans";
@@ -451,7 +454,7 @@ function renderDetail(){
   const t = tallies()[p.id], mv = myVote();
   const liked = (mv.likes||[]).includes(p.id), fav = mv.fav === p.id;
   const cost = costInfo(p);
-  const mine = p.authorKey === meKey();
+  const mine = p.authorKey === meKey() || isAdmin();
   const coms = S.comments.filter(x => x.planId === p.id).sort((a,b) => a.createdAt - b.createdAt);
   const draft = $("#comText")?.value || "";
   const safeLink = p.link && /^https?:\/\//i.test(p.link) ? p.link : null;
@@ -475,10 +478,10 @@ function renderDetail(){
       <button class="btn like ${liked?"on":""}" data-like="${p.id}">👍 ${liked?"Votado":"Votar"} <span class="count">${t.likes.length}</span></button>
       <button class="btn fav ${fav?"on":""}" data-fav="${p.id}">⭐ Favorito <span class="count">${t.favs.length}</span></button>
     </div>
-    ${t.likes.length ? `<div class="people">${t.likes.map(n => `<span class="person ${t.favs.includes(n)?"f":""}">${t.favs.includes(n)?"⭐ ":""}${esc(n)}</span>`).join("")}</div>` : `<p class="hint" style="margin-top:8px">Nadie ha votado este plan todavía.</p>`}
+    ${t.likes.length ? `<div class="people">${t.likes.map(n => `<span class="person ${t.favs.includes(n)?"f":""}">${t.favs.includes(n)?"⭐ ":""}${esc(n)}${isAdmin() ? ` <button class="del" data-unvote="${esc(keyOf(n))}" aria-label="Quitar voto">✕</button>` : ""}</span>`).join("")}</div>` : `<p class="hint" style="margin-top:8px">Nadie ha votado este plan todavía.</p>`}
 
     <h3 class="section-t">💬 Opiniones (${coms.length})</h3>
-    ${coms.map(m => `<div class="comment"><div class="who">${esc(m.name)} <span>${ago(m.createdAt)}${m.nameKey===meKey()?` · <button class="del" data-delcom="${m.id}">borrar</button>`:""}</span></div><p>${esc(m.text)}</p></div>`).join("") || `<p class="hint">Aún no hay opiniones. ¡Di algo!</p>`}
+    ${coms.map(m => `<div class="comment"><div class="who">${esc(m.name)} <span>${ago(m.createdAt)}${(m.nameKey===meKey() || isAdmin())?` · <button class="del" data-delcom="${m.id}">borrar</button>`:""}</span></div><p>${esc(m.text)}</p></div>`).join("") || `<p class="hint">Aún no hay opiniones. ¡Di algo!</p>`}
     <div class="send">
       <textarea id="comText" maxlength="600" placeholder="Tu opinión sobre este plan…">${esc(draft)}</textarea>
       <button class="btn primary" id="comSend">Enviar</button>
@@ -583,6 +586,13 @@ document.addEventListener("click", async e => {
   if (d.lb != null) { const p = S.plans.find(x => x.id === S.openId); if (!p) return; LB.list = photosOf(p); LB.i = +d.lb; showLb(); return openOv("#lbOv"); }
   if (d.rmph != null) { S.photos.splice(+d.rmph, 1); return renderThumbs(); }
   if (d.cover != null) { const [x] = S.photos.splice(+d.cover, 1); S.photos.unshift(x); return renderThumbs(); }
+  if (d.unvote && isAdmin()) {
+    const v = S.votes.find(x => x.id === d.unvote); if (!v) return;
+    if (!confirm(`¿Quitar el voto de ${v.name} en este plan?`)) return;
+    try { await store.set("votes", v.id, { likes: (v.likes||[]).filter(x => x !== S.openId), fav: v.fav === S.openId ? null : (v.fav || null), updatedAt: Date.now() }); toast("Voto quitado"); }
+    catch(e){ toast("No se pudo quitar el voto"); }
+    return;
+  }
   if ("newsOk" in d) { S.news = null; markSeen(); return render(); }
   if (d.like) return toggleLike(d.like);
   if (d.fav) return toggleFav(d.fav);
