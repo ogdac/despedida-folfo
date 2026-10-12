@@ -209,6 +209,9 @@ a{color:var(--accent);word-break:break-all}
   background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),rgba(255,226,160,.20),transparent 70%)}
 .card.lit .body::after{opacity:1}
 @media (prefers-reduced-motion: reduce){.card.enter,.rank.lead::before{animation:none}.tab-ind{transition:none}}
+.card.tap{cursor:pointer;-webkit-user-select:none;user-select:none}
+.card.tap:active{transform:scale(.99)}
+.more{margin-left:auto;align-self:center;font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap}
 /* ===== Tema: dorado oscuro + cristal + botones neumórficos ===== */
 :root,:root:not([x]){--bg:#121110;--surface:#1c1a18;--surface-2:#262320;--ink:#f3ece0;--muted:#a89f90;--line:#332f2a;
 --accent:#d4a857;--accent-ink:#1a1610;--accent-soft:#33291a;--like:#8fc9a3;--like-soft:#1d2c22;--fav:#d4a857;--fav-soft:#33291a;--hero:#0c0b0a;--hero-ink:#f3ece0;
@@ -495,7 +498,7 @@ function renderPlans(){
     const photo = img(p)
       ? `<div class="photo" style="background-image:url('${img(p)}')">`
       : `<div class="photo empty"><span class="big">${esc((p.destination||"?")[0].toUpperCase())}</span>`;
-    return `<article class="card${enter ? " enter" : ""}" style="--d:${Math.min(idx, 8) * 90}ms">
+    return `<article class="card tap${enter ? " enter" : ""}" data-open="${p.id}" style="--d:${Math.min(idx, 8) * 90}ms">
       ${photo}${fav ? `<span class="favbadge">⭐ Tu favorito</span>` : ""}${photosOf(p).length > 1 ? `<span class="nph">📷 ${photosOf(p).length}</span>` : ""}<span class="dest">📍 ${esc(p.destination)}</span></div>
       <div class="body">
         <h2>${esc(p.title)}</h2>
@@ -505,11 +508,11 @@ function renderPlans(){
           ${cost ? `<span class="chip money">✈️🏨 ${cost} /persona</span>` : ""}
           ${p.nights ? `<span class="chip">🌙 ${p.nights} noche${p.nights>1?"s":""}</span>` : ""}
           <span class="chip">💬 ${nCom}</span>
+          <span class="more">Ver más ›</span>
         </div>
         <div class="actions">
           <button class="btn like ${liked?"on":""}" data-like="${p.id}">👍 ${liked?"Votado":"Votar"} <span class="count" data-cu="l-${p.id}">${t[p.id].likes.length}</span></button>
           <button class="btn fav ${fav?"on":""}" data-fav="${p.id}">⭐ Favorito <span class="count" data-cu="f-${p.id}">${t[p.id].favs.length}</span></button>
-          <button class="btn wide" data-open="${p.id}">Ver detalles y opinar</button>
         </div>
         ${canManage(p) ? `<div class="owner"><span class="owner-l">${p.authorKey === meKey() ? "✨ Es tu plan" : "🛡️ Admin"}</span>
           <div class="owner-b"><button class="btn sm" data-edit="${p.id}" aria-label="Editar">✏️ Editar</button>
@@ -662,6 +665,34 @@ const spot = e => { const c = e.target.closest && e.target.closest(".card"); if 
 document.addEventListener("pointermove", spot, { passive: true });
 document.addEventListener("pointerdown", spot, { passive: true });
 
+/* ---------- deslizar hacia abajo para cerrar ---------- */
+function swipeToClose(ov, panel, fromTopOnly){
+  let y0 = null, x0 = 0, dy = 0, t0 = 0, lock = null;
+  panel.addEventListener("touchstart", e => {
+    if (e.touches.length !== 1) return;
+    if (fromTopOnly && panel.scrollTop > 0) return;          // solo si la ventana está arriba del todo
+    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; t0 = Date.now(); lock = null; panel.style.transition = "none";
+  }, { passive: true });
+  panel.addEventListener("touchmove", e => {
+    if (y0 == null) return;
+    const ddx = e.touches[0].clientX - x0; dy = e.touches[0].clientY - y0;
+    if (lock == null && (Math.abs(ddx) > 8 || Math.abs(dy) > 8)) lock = Math.abs(dy) > Math.abs(ddx) ? "v" : "h";
+    if (lock === "h") { y0 = null; panel.style.transform = ""; return; }   // deslizar fotos en horizontal no cierra
+    if (dy <= 0) { panel.style.transform = ""; return; }
+    if (e.cancelable) e.preventDefault();
+    panel.style.transform = `translateY(${dy}px)`;
+  }, { passive: false });
+  panel.addEventListener("touchend", () => {
+    if (y0 == null) return;
+    const fast = dy > 60 && Date.now() - t0 < 250; y0 = null;
+    panel.style.transition = "transform .25s ease";
+    if (dy > 120 || fast) { panel.style.transform = "translateY(100%)"; setTimeout(() => { closeOv("#" + ov.id); panel.style.transition = ""; panel.style.transform = ""; }, 220); }
+    else panel.style.transform = "";
+  });
+}
+["#detailOv", "#formOv", "#waOv"].forEach(id => swipeToClose($(id), $(id).querySelector(".sheet"), true));
+swipeToClose($("#lbOv"), $("#lbOv"), false);
+
 /* ---------- novedades desde la última visita ---------- */
 const seenKey = () => "despedida_visto_" + meKey();
 function leaderId(){ const t = tallies(), r = ranked(); return r.length && t[r[0].id].likes.length ? r[0].id : null; }
@@ -737,8 +768,22 @@ async function saveVote(likes, fav){
   catch(e){ console.error(e); toast("No se pudo guardar el voto"); }
 }
 
-function openOv(sel){ $(sel).classList.add("open"); document.body.style.overflow="hidden"; }
-function closeOv(sel){ $(sel).classList.remove("open"); if (sel==="#detailOv") { S.openId=null; S.galPlan=null; clearInterval(S.galTimer); } if (!document.querySelector(".overlay.open")) document.body.style.overflow=""; }
+const MODALS = ["#lbOv", "#waOv", "#formOv", "#detailOv"];   // de arriba a abajo
+function openOv(sel){
+  const el = $(sel); el.classList.add("open"); el.querySelector(".sheet")?.style.removeProperty("transform"); document.body.style.overflow="hidden";
+  if (MODALS.includes(sel) && !S.histPushed) { try { history.pushState({ modal: 1 }, ""); S.histPushed = true; } catch {} }
+}
+function anyModal(){ return MODALS.some(m => $(m).classList.contains("open")); }
+// si se cierra con la X o deslizando, se quita también la entrada del historial (en diferido, por si se abre otra ventana justo después)
+function syncHistory(){ setTimeout(() => { if (S.histPushed && !anyModal()) { S.histPushed = false; S.ignorePop = true; try { history.back(); } catch {} } }, 0); }
+window.addEventListener("popstate", () => {
+  if (S.ignorePop) { S.ignorePop = false; return; }
+  S.histPushed = false;
+  const top = MODALS.find(m => $(m).classList.contains("open"));
+  if (top) closeOv(top, true);
+  if (anyModal()) { try { history.pushState({ modal: 1 }, ""); S.histPushed = true; } catch {} }
+});
+function closeOv(sel, fromBack){ $(sel).classList.remove("open"); if (!fromBack) syncHistory(); if (sel==="#detailOv") { S.openId=null; S.galPlan=null; clearInterval(S.galTimer); } if (!document.querySelector(".overlay.open")) document.body.style.overflow=""; }
 
 document.addEventListener("click", async e => {
   const b = e.target.closest("button,[data-open]"); if (!b) return;
