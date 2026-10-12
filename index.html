@@ -547,7 +547,8 @@ const S = { me: ls.get("despedida_nombre") || "", pinHash: ls.get("despedida_pin
 const meKey = () => keyOf(S.me);
 S.cardIdx = {}; S.users = []; S.profiles = []; S.cfg = [];
 /* avatares: el admin decide las opciones (todas con la cara del novio) */
-const FACES = ["cara1.webp", "cara2.webp", "cara3.webp"];
+const FACES = [];   // pendiente: el admin pasará las fotos del novio para elegir
+const AVATAR_PICKER = FACES.length > 0;
 const AV_EMOJI = ["", "👑", "😎", "🍺", "💍", "🎉", "🕺"];
 const AVATARS = [];
 FACES.forEach((f, i) => AV_EMOJI.forEach((e, j) => AVATARS.push({ id: `c${i+1}-${j}`, face: f, e })));
@@ -603,7 +604,8 @@ function render(){
   renderNews();
   $("#meBar").hidden = !S.me;
   $("#meName").textContent = S.me ? `Hola, ${S.me} 👋${isAdmin() ? " · 🛡️ Admin" : ""}` : "";
-  $("#myAv").innerHTML = S.me ? avHTML(meKey(), S.me) + `<i class="pen">✏️</i>` : "";
+  $("#myAv").hidden = !AVATAR_PICKER;
+  $("#myAv").innerHTML = S.me && AVATAR_PICKER ? avHTML(meKey(), S.me) + `<i class="pen">✏️</i>` : "";
   $("#fab").hidden = closed();
   $("#tabPlans").setAttribute("aria-selected", S.tab === "plans");
   $("#tabRank").setAttribute("aria-selected", S.tab === "rank");
