@@ -53,6 +53,9 @@ h1,h2,h3{font-family:"Bricolage Grotesque",Inter,sans-serif;margin:0;letter-spac
 .tabs button[aria-selected=true]{background:var(--ink);color:var(--bg)}
 .tbadge{display:inline-block;min-width:20px;height:20px;line-height:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;vertical-align:1px}
 .news{background:var(--surface);border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin-top:14px;box-shadow:var(--shadow);position:relative;animation:up .3s ease-out}
+.wa-st{position:absolute;right:70px;top:-78px;height:120px;transform:rotate(7deg);filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));animation:bob 3.2s ease-in-out infinite}
+.news-st{position:absolute;right:12px;bottom:62px;height:96px;transform:rotate(6deg);filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))}
+.news ul{padding-right:90px!important}
 .news h3{font-size:16px;margin:0 30px 6px 0}
 .news ul{margin:0;padding:0;list-style:none;font-size:15px}
 .news li{padding:3px 0}
@@ -249,7 +252,7 @@ a{color:var(--accent);word-break:break-all}
 </div>
 
 <!-- Avisar por WhatsApp -->
-<div class="overlay" id="waOv"><div class="sheet">
+<div class="overlay" id="waOv"><div class="sheet" style="overflow:visible;position:relative"><img class="wa-st" src="joven.webp" alt="">
   <div class="grab"></div>
   <div class="sheet-head"><h2>¡Plan publicado! 🎉</h2><button class="x" data-close>×</button></div>
   <p class="hint" style="margin:0">Avisa al grupo para que entren a votarlo. Se abrirá WhatsApp con este mensaje ya escrito:</p>
@@ -520,7 +523,7 @@ function renderNews(){
   b.hidden = !(n && n.plans); b.textContent = n?.plans || "";
   if (!n) { el.innerHTML = ""; return; }
   el.innerHTML = `<div class="news"><button class="x" data-news-ok aria-label="Cerrar">×</button>
-    <h3>🆕 Desde tu última visita</h3><ul>
+    <img class="news-st" src="joven.webp" alt=""><h3>🆕 Desde tu última visita</h3><ul>
     ${n.plans ? `<li>🗺️ <b>${n.plans}</b> plan${n.plans>1?"es nuevos":" nuevo"}</li>` : ""}
     ${n.coms ? `<li>💬 <b>${n.coms}</b> ${n.coms>1?"opiniones nuevas":"opinión nueva"}</li>` : ""}
     ${n.leader ? `<li>🏆 Ahora va ganando: <b>${esc(n.leader)}</b></li>` : ""}
