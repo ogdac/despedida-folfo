@@ -212,7 +212,7 @@ a{color:var(--accent);word-break:break-all}
     <label for="fNights">Noches <small>(aprox.)</small></label>
     <input type="number" id="fNights" min="1" max="10" inputmode="numeric" placeholder="Ej: 3">
 
-    <label>💶 Presupuesto aproximado por persona <small>(todo incluido)</small></label>
+    <label>✈️🏨 Vuelo + alojamiento por persona <small>(aproximado)</small></label>
     <div class="row2" style="align-items:center">
       <input type="number" id="fMin" min="0" inputmode="numeric" placeholder="Entre… €">
       <input type="number" id="fMax" min="0" inputmode="numeric" placeholder="…y €">
@@ -373,7 +373,7 @@ function renderPlans(){
         <div class="by">Propuesto por ${esc(p.authorName)} · ${ago(p.createdAt)}</div>
         <p class="desc">${esc(p.description)}</p>
         <div class="chips">
-          ${cost ? `<span class="chip money">💶 ${cost} /persona</span>` : ""}
+          ${cost ? `<span class="chip money">✈️🏨 ${cost} /persona</span>` : ""}
           ${p.nights ? `<span class="chip">🌙 ${p.nights} noche${p.nights>1?"s":""}</span>` : ""}
           <span class="chip">💬 ${nCom}</span>
         </div>
@@ -434,7 +434,7 @@ function renderDetail(){
     </div>
     <p class="fulltext">${esc(p.description)}</p>
 
-    <div class="total-line" style="margin-top:14px;font-weight:700;background:var(--accent-soft);border-radius:12px;padding:12px 14px">💶 Presupuesto aprox. por persona: ${cost || "sin indicar"}</div>
+    <div class="total-line" style="margin-top:14px;font-weight:700;background:var(--accent-soft);border-radius:12px;padding:12px 14px">✈️🏨 Vuelo + alojamiento por persona: ${cost || "sin indicar"}</div>
     ${safeLink ? `<p style="margin-top:12px">🔗 <a href="${esc(safeLink)}" target="_blank" rel="noopener">${esc(safeLink)}</a></p>` : ""}
 
     <div class="actions">
