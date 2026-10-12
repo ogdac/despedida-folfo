@@ -171,6 +171,11 @@ a{color:var(--accent);word-break:break-all}
 .welcome .sheet{overflow:visible;margin-top:60px;border-radius:24px;margin:130px 16px 16px;width:calc(100% - 32px);text-align:center;padding:26px 20px}
 .welcome h2{font-size:26px;margin-top:6px}
 
+.owner{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.owner-l{display:block;font-size:13px;font-weight:600;color:var(--accent);margin-bottom:10px}
+.owner-b{display:grid;grid-template-columns:1fr 1.3fr auto;gap:8px}
+.btn.sm{min-height:40px;padding:6px 12px;font-size:14px;border-radius:12px;white-space:nowrap}
+.btn.wa-soft{color:#3ee07f!important}
 /* ===== Tema: dorado oscuro + cristal + botones neumórficos ===== */
 :root,:root:not([x]){--bg:#121110;--surface:#1c1a18;--surface-2:#262320;--ink:#f3ece0;--muted:#a89f90;--line:#332f2a;
 --accent:#d4a857;--accent-ink:#1a1610;--accent-soft:#33291a;--like:#8fc9a3;--like-soft:#1d2c22;--fav:#d4a857;--fav-soft:#33291a;--hero:#0c0b0a;--hero-ink:#f3ece0;
@@ -300,8 +305,8 @@ input:focus,textarea:focus{box-shadow:inset 4px 4px 9px var(--neu-lo),inset -3px
 <!-- Avisar por WhatsApp -->
 <div class="overlay" id="waOv"><div class="sheet" style="overflow:visible;position:relative"><img class="wa-st" src="joven.webp" alt="">
   <div class="grab"></div>
-  <div class="sheet-head"><h2>¡Plan publicado! 🎉</h2><button class="x" data-close>×</button></div>
-  <p class="hint" style="margin:0">Avisa al grupo para que entren a votarlo. Se abrirá WhatsApp con este mensaje ya escrito:</p>
+  <div class="sheet-head"><h2 id="waTitle">¡Plan publicado! 🎉</h2><button class="x" data-close>×</button></div>
+  <p class="hint" style="margin:0" id="waIntro">Avisa al grupo para que entren a votarlo. Se abrirá WhatsApp con este mensaje ya escrito:</p>
   <div class="wa-msg" id="waMsg"></div>
   <a class="btn wa" id="waBtn" href="#" target="_blank" rel="noopener" style="width:100%">Avisar al grupo por WhatsApp</a>
   <button class="btn" data-close style="width:100%;margin-top:8px">Ahora no</button>
@@ -395,6 +400,7 @@ const S = { me: ls.get("despedida_nombre") || "", pinHash: ls.get("despedida_pin
 const meKey = () => keyOf(S.me);
 /* Administrador: el usuario "Diego" con su PIN (se guarda solo la huella del PIN, nunca el PIN) */
 const ADMIN = { key: "diego", pinHash: "efd5b04761c349df275998a500568ac2048b554723531f1e3fb5e961e182c417" };
+const canManage = p => p.authorKey === meKey() || isAdmin();
 const isAdmin = () => !!S.me && meKey() === ADMIN.key && S.pinHash === ADMIN.pinHash;
 
 const loaded = { plans: false, votes: false, comments: false };
@@ -465,6 +471,10 @@ function renderPlans(){
           <button class="btn fav ${fav?"on":""}" data-fav="${p.id}">⭐ Favorito <span class="count">${t[p.id].favs.length}</span></button>
           <button class="btn wide" data-open="${p.id}">Ver detalles y opinar</button>
         </div>
+        ${canManage(p) ? `<div class="owner"><span class="owner-l">${p.authorKey === meKey() ? "✨ Es tu plan" : "🛡️ Admin"}</span>
+          <div class="owner-b"><button class="btn sm" data-edit="${p.id}" aria-label="Editar">✏️ Editar</button>
+          <button class="btn sm" data-share="${p.id}" aria-label="Compartir">📲 Compartir</button>
+          <button class="btn sm danger" data-delete="${p.id}" aria-label="Borrar">🗑️</button></div></div>` : ""}
       </div>
     </article>`;
   }).join("");
@@ -500,7 +510,7 @@ function renderDetail(){
   const t = tallies()[p.id], mv = myVote();
   const liked = (mv.likes||[]).includes(p.id), fav = mv.fav === p.id;
   const cost = costInfo(p);
-  const mine = p.authorKey === meKey() || isAdmin();
+  const mine = canManage(p);
   const coms = S.comments.filter(x => x.planId === p.id).sort((a,b) => a.createdAt - b.createdAt);
   const draft = $("#comText")?.value || "";
   const safeLink = p.link && /^https?:\/\//i.test(p.link) ? p.link : null;
@@ -533,7 +543,9 @@ function renderDetail(){
       <button class="btn primary" id="comSend">Enviar</button>
     </div>
 
-    ${mine ? `<div class="actions" style="margin-top:22px">
+    ${mine ? `<h3 class="section-t">${p.authorKey === meKey() ? "✨ Tu plan" : "🛡️ Opciones de admin"}</h3>
+    <div class="actions" style="margin-top:8px">
+      <button class="btn wide wa-soft" data-share="${p.id}">📲 Compartir en el grupo de WhatsApp</button>
       <button class="btn" data-edit="${p.id}">✏️ Editar</button>
       <button class="btn danger" data-delete="${p.id}">🗑️ Borrar</button>
     </div>` : ""}
@@ -589,11 +601,14 @@ function openDeepLink(){
 }
 
 /* ---------- avisar al grupo por WhatsApp ---------- */
-function shareWhatsApp(id){
+function shareWhatsApp(id, isNew){
   const p = S.plans.find(x => x.id === id) || S.lastPlan; if (!p) return;
+  $("#waTitle").textContent = isNew ? "¡Plan publicado! 🎉" : "Compartir plan 📲";
+  $("#waIntro").textContent = isNew ? "Avisa al grupo para que entren a votarlo. Se abrirá WhatsApp con este mensaje ya escrito:" : "Se abrirá WhatsApp con este mensaje ya escrito. Elige el grupo y envíalo:";
+  const own = !p.authorKey || p.authorKey === meKey();
   const url = location.origin + location.pathname + "?plan=" + encodeURIComponent(id);
   const cost = costInfo(p);
-  const msg = `🎉 He propuesto un plan para la despedida de Folfo:\n*${p.title}* (📍 ${p.destination})` +
+  const msg = (own ? `🎉 He propuesto un plan para la despedida de Folfo:` : `🎉 Mira este plan de ${p.authorName} para la despedida de Folfo:`) + `\n*${p.title}* (📍 ${p.destination})` +
     (cost ? `\n✈️🏨 Vuelo + alojamiento: ${cost} por persona` : "") + `\n\n¡Entra a verlo y vota! 👇\n${url}`;
   $("#waMsg").textContent = msg;
   $("#waBtn").href = "https://wa.me/?text=" + encodeURIComponent(msg);
@@ -644,6 +659,7 @@ document.addEventListener("click", async e => {
   if (d.fav) return toggleFav(d.fav);
   if (d.open) { S.openId = d.open; renderDetail(); openOv("#detailOv"); $("#detail").scrollTop = 0; return; }
   if ("close" in d) return closeOv("#" + b.closest(".overlay").id);
+  if (d.share) { closeOv("#detailOv"); return shareWhatsApp(d.share, false); }
   if (d.edit) { closeOv("#detailOv"); return openForm(d.edit); }
   if (d.delete) {
     if (!confirm("¿Seguro que quieres borrar este plan? Se perderán sus votos.")) return;
@@ -773,7 +789,7 @@ $("#planForm").addEventListener("submit", async e => {
     if (S.editId) await store.set("plans", S.editId, data);
     else { newId = uid(); S.lastPlan = { ...data, id: newId }; await store.set("plans", newId, { ...data, authorName: S.me, authorKey: meKey(), createdAt: Date.now() }); }
     closeOv("#formOv"); S.tab = "plans"; render();
-    if (newId) shareWhatsApp(newId); else toast("Plan actualizado ✅");
+    if (newId) shareWhatsApp(newId, true); else toast("Plan actualizado ✅");
   } catch(err){ console.error(err); F("formErr").textContent = "No se pudo guardar. Revisa la conexión y vuelve a intentarlo."; }
   btn.disabled = false;
 });
