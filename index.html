@@ -551,11 +551,27 @@ function renderDetail(){
     </div>` : ""}
   `;
   const gal = $("#gal");
-  if (gal) gal.addEventListener("scroll", () => {
-    const n = photosOf(p).length; if (n < 2) return;
-    const i = Math.round(gal.scrollLeft / gal.clientWidth) + 1;
-    $("#gcount").textContent = `${Math.min(i,n)} / ${n}`;
+  clearInterval(S.galTimer);
+  if (!gal) return;
+  const n = photosOf(p).length;
+  // mantener la foto que se estaba viendo si la ficha se redibuja (p. ej. al llegar un voto)
+  if (S.galPlan === p.id && S.galIdx) gal.scrollLeft = S.galIdx * gal.clientWidth; else S.galIdx = 0;
+  S.galPlan = p.id;
+  gal.addEventListener("scroll", () => {
+    if (n < 2) return;
+    S.galIdx = Math.round(gal.scrollLeft / gal.clientWidth);
+    $("#gcount").textContent = `${Math.min(S.galIdx + 1, n)} / ${n}`;
   }, { passive: true });
+  if (n < 2) return;
+  // pase automático cada 5 s; si la persona toca la galería, se pausa 10 s
+  const pause = () => { S.galHold = Date.now() + 10000; };
+  ["touchstart","pointerdown","wheel"].forEach(ev => gal.addEventListener(ev, pause, { passive: true }));
+  S.galTimer = setInterval(() => {
+    if (!document.body.contains(gal) || !$("#detailOv").classList.contains("open")) return clearInterval(S.galTimer);
+    if (document.hidden || $("#lbOv").classList.contains("open") || Date.now() < (S.galHold || 0)) return;
+    const next = (Math.round(gal.scrollLeft / gal.clientWidth) + 1) % n;
+    gal.scrollTo({ left: next * gal.clientWidth, behavior: "smooth" });
+  }, 5000);
 }
 
 /* ---------- visor de fotos ---------- */
@@ -641,7 +657,7 @@ async function saveVote(likes, fav){
 }
 
 function openOv(sel){ $(sel).classList.add("open"); document.body.style.overflow="hidden"; }
-function closeOv(sel){ $(sel).classList.remove("open"); if (sel==="#detailOv") S.openId=null; if (!document.querySelector(".overlay.open")) document.body.style.overflow=""; }
+function closeOv(sel){ $(sel).classList.remove("open"); if (sel==="#detailOv") { S.openId=null; S.galPlan=null; clearInterval(S.galTimer); } if (!document.querySelector(".overlay.open")) document.body.style.overflow=""; }
 
 document.addEventListener("click", async e => {
   const b = e.target.closest("button,[data-open]"); if (!b) return;
