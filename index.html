@@ -51,6 +51,15 @@ h1,h2,h3{font-family:"Bricolage Grotesque",Inter,sans-serif;margin:0;letter-spac
 .tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;margin:16px 0 14px;position:sticky;top:8px;z-index:5;box-shadow:var(--shadow)}
 .tabs button{flex:1;border:0;background:transparent;padding:10px;border-radius:999px;font-weight:600;color:var(--muted)}
 .tabs button[aria-selected=true]{background:var(--ink);color:var(--bg)}
+.tbadge{display:inline-block;min-width:20px;height:20px;line-height:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;vertical-align:1px}
+.news{background:var(--surface);border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin-top:14px;box-shadow:var(--shadow);position:relative;animation:up .3s ease-out}
+.news h3{font-size:16px;margin:0 30px 6px 0}
+.news ul{margin:0;padding:0;list-style:none;font-size:15px}
+.news li{padding:3px 0}
+.news .x{position:absolute;top:8px;right:8px;width:32px;height:32px;font-size:18px;box-shadow:none;background:var(--surface-2)}
+.news .ok{margin-top:10px;width:100%;min-height:40px;font-size:14px}
+.btn.wa{background:#25d366;border-color:#25d366;color:#fff;text-decoration:none}
+.wa-msg{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;font-size:14px;white-space:pre-wrap;word-wrap:break-word;margin:12px 0}
 
 .banner{background:var(--fav-soft);border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:13px;margin-top:14px}
 .hint{color:var(--muted);font-size:14px}
@@ -174,8 +183,10 @@ a{color:var(--accent);word-break:break-all}
 <main class="wrap">
   <div id="demoBanner" class="banner" hidden>🧪 <b>Modo prueba:</b> la base de datos aún no está conectada, así que lo que hagas solo se guarda en este dispositivo.</div>
 
+  <div id="news"></div>
+
   <div class="tabs" role="tablist">
-    <button role="tab" id="tabPlans" aria-selected="true">Planes</button>
+    <button role="tab" id="tabPlans" aria-selected="true">Planes<span class="tbadge" id="planBadge" hidden></span></button>
     <button role="tab" id="tabRank" aria-selected="false">Ranking</button>
   </div>
 
@@ -236,6 +247,16 @@ a{color:var(--accent);word-break:break-all}
     <button class="btn primary" type="submit" id="formSubmit" style="width:100%;margin-top:6px">Publicar plan</button>
   </form>
 </div>
+
+<!-- Avisar por WhatsApp -->
+<div class="overlay" id="waOv"><div class="sheet">
+  <div class="grab"></div>
+  <div class="sheet-head"><h2>¡Plan publicado! 🎉</h2><button class="x" data-close>×</button></div>
+  <p class="hint" style="margin:0">Avisa al grupo para que entren a votarlo. Se abrirá WhatsApp con este mensaje ya escrito:</p>
+  <div class="wa-msg" id="waMsg"></div>
+  <a class="btn wa" id="waBtn" href="#" target="_blank" rel="noopener" style="width:100%">Avisar al grupo por WhatsApp</a>
+  <button class="btn" data-close style="width:100%;margin-top:8px">Ahora no</button>
+</div></div>
 
 <!-- Detail -->
 <div class="overlay" id="detailOv"><div class="sheet" id="detail"></div></div>
@@ -324,9 +345,10 @@ if (configured) {
 const S = { me: ls.get("despedida_nombre") || "", pinHash: ls.get("despedida_pin") || "", plans: [], votes: [], comments: [], tab: "plans", openId: null, editId: null, photos: [] };
 const meKey = () => keyOf(S.me);
 
-store.watch("plans", d => { S.plans = d; render(); });
-store.watch("votes", d => { S.votes = d; render(); });
-store.watch("comments", d => { S.comments = d; render(); });
+const loaded = { plans: false, votes: false, comments: false };
+store.watch("plans", d => { S.plans = d; loaded.plans = true; render(); });
+store.watch("votes", d => { S.votes = d; loaded.votes = true; render(); });
+store.watch("comments", d => { S.comments = d; loaded.comments = true; render(); });
 
 function tallies(){
   const t = {};
@@ -348,6 +370,8 @@ function ranked(){
 
 /* ---------- render ---------- */
 function render(){
+  if (S.me && loaded.plans && loaded.votes && loaded.comments) { if (!S.newsDone) computeNews(); if (S.deepLink) openDeepLink(); }
+  renderNews();
   $("#meBar").hidden = !S.me;
   $("#meName").textContent = S.me ? `Hola, ${S.me} 👋` : "";
   $("#tabPlans").setAttribute("aria-selected", S.tab === "plans");
@@ -477,6 +501,54 @@ function showLb(){ $("#lbImg").src = LB.list[LB.i]; $("#lbN").textContent = `${L
 $("#lbPrev").onclick = e => { e.stopPropagation(); LB.i = (LB.i - 1 + LB.list.length) % LB.list.length; showLb(); };
 $("#lbNext").onclick = e => { e.stopPropagation(); LB.i = (LB.i + 1) % LB.list.length; showLb(); };
 
+/* ---------- novedades desde la última visita ---------- */
+const seenKey = () => "despedida_visto_" + meKey();
+function leaderId(){ const t = tallies(), r = ranked(); return r.length && t[r[0].id].likes.length ? r[0].id : null; }
+function computeNews(){
+  S.newsDone = true;
+  let prev = null; try { prev = JSON.parse(ls.get(seenKey()) || "null"); } catch {}
+  if (!prev) { markSeen(); return; }
+  const me = meKey(), ids = new Set(S.plans.map(p => p.id));
+  const plans = S.plans.filter(p => (p.createdAt||0) > prev.ts && p.authorKey !== me);
+  const coms = S.comments.filter(c => c.createdAt > prev.ts && c.nameKey !== me && ids.has(c.planId));
+  const lead = leaderId(), leadPlan = lead && lead !== prev.leader ? S.plans.find(p => p.id === lead) : null;
+  S.news = (plans.length || coms.length || leadPlan) ? { plans: plans.length, coms: coms.length, leader: leadPlan?.title || null } : null;
+}
+function markSeen(){ ls.set(seenKey(), JSON.stringify({ ts: Date.now(), leader: leaderId() })); }
+function renderNews(){
+  const n = S.news, el = $("#news"), b = $("#planBadge");
+  b.hidden = !(n && n.plans); b.textContent = n?.plans || "";
+  if (!n) { el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="news"><button class="x" data-news-ok aria-label="Cerrar">×</button>
+    <h3>🆕 Desde tu última visita</h3><ul>
+    ${n.plans ? `<li>🗺️ <b>${n.plans}</b> plan${n.plans>1?"es nuevos":" nuevo"}</li>` : ""}
+    ${n.coms ? `<li>💬 <b>${n.coms}</b> ${n.coms>1?"opiniones nuevas":"opinión nueva"}</li>` : ""}
+    ${n.leader ? `<li>🏆 Ahora va ganando: <b>${esc(n.leader)}</b></li>` : ""}
+    </ul><button class="btn ok" data-news-ok>Entendido</button></div>`;
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden && S.me && S.newsDone) markSeen(); });
+
+/* ---------- link directo a un plan (?plan=...) ---------- */
+S.deepLink = new URLSearchParams(location.search).get("plan");
+function openDeepLink(){
+  const id = S.deepLink; S.deepLink = null;
+  try { history.replaceState(null, "", location.pathname); } catch {}
+  if (S.plans.some(p => p.id === id)) { S.openId = id; setTimeout(() => { renderDetail(); openOv("#detailOv"); }); }
+}
+
+/* ---------- avisar al grupo por WhatsApp ---------- */
+function shareWhatsApp(id){
+  const p = S.plans.find(x => x.id === id) || S.lastPlan; if (!p) return;
+  const url = location.origin + location.pathname + "?plan=" + encodeURIComponent(id);
+  const cost = costInfo(p);
+  const msg = `🎉 He propuesto un plan para la despedida de Folfo:\n*${p.title}* (📍 ${p.destination})` +
+    (cost ? `\n✈️🏨 Vuelo + alojamiento: ${cost} por persona` : "") + `\n\n¡Entra a verlo y vota! 👇\n${url}`;
+  $("#waMsg").textContent = msg;
+  $("#waBtn").href = "https://wa.me/?text=" + encodeURIComponent(msg);
+  openOv("#waOv");
+}
+$("#waBtn").addEventListener("click", () => setTimeout(() => closeOv("#waOv"), 300));
+
 /* ---------- acciones ---------- */
 function needName(){ if (!S.me) { openOv("#welcome"); $("#nameInput").focus(); return true; } return false; }
 
@@ -508,6 +580,7 @@ document.addEventListener("click", async e => {
   if (d.lb != null) { const p = S.plans.find(x => x.id === S.openId); if (!p) return; LB.list = photosOf(p); LB.i = +d.lb; showLb(); return openOv("#lbOv"); }
   if (d.rmph != null) { S.photos.splice(+d.rmph, 1); return renderThumbs(); }
   if (d.cover != null) { const [x] = S.photos.splice(+d.cover, 1); S.photos.unshift(x); return renderThumbs(); }
+  if ("newsOk" in d) { S.news = null; markSeen(); return render(); }
   if (d.like) return toggleLike(d.like);
   if (d.fav) return toggleFav(d.fav);
   if (d.open) { S.openId = d.open; renderDetail(); openOv("#detailOv"); $("#detail").scrollTop = 0; return; }
@@ -545,6 +618,7 @@ async function hashPin(key, pin){
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
 }
 function login(name, hash){
+  S.newsDone = false; S.news = null;
   S.me = name; S.pinHash = hash; ls.set("despedida_nombre", name); ls.set("despedida_pin", hash);
   $("#nameErr").textContent = ""; $("#pinInput").value = ""; closeOv("#welcome"); render();
 }
@@ -636,9 +710,11 @@ $("#planForm").addEventListener("submit", async e => {
   };
   const btn = F("formSubmit"); btn.disabled = true;
   try {
+    let newId = null;
     if (S.editId) await store.set("plans", S.editId, data);
-    else await store.set("plans", uid(), { ...data, authorName: S.me, authorKey: meKey(), createdAt: Date.now() });
-    closeOv("#formOv"); S.tab = "plans"; render(); toast(S.editId ? "Plan actualizado ✅" : "¡Plan publicado! 🎉");
+    else { newId = uid(); S.lastPlan = { ...data, id: newId }; await store.set("plans", newId, { ...data, authorName: S.me, authorKey: meKey(), createdAt: Date.now() }); }
+    closeOv("#formOv"); S.tab = "plans"; render();
+    if (newId) shareWhatsApp(newId); else toast("Plan actualizado ✅");
   } catch(err){ console.error(err); F("formErr").textContent = "No se pudo guardar. Revisa la conexión y vuelve a intentarlo."; }
   btn.disabled = false;
 });
