@@ -109,13 +109,25 @@ textarea{min-height:96px;resize:vertical}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .group{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px 14px 14px;margin-top:16px}
 .group h3{font-size:16px;margin-top:12px}
-.total{margin-top:12px;font-weight:700;background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:15px}
-.photo-pick{display:flex;align-items:center;gap:12px}
-.photo-prev{width:84px;height:64px;border-radius:10px;background:var(--surface-2) center/cover;border:1px dashed var(--line);flex:none}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.thumb{position:relative;aspect-ratio:1;border-radius:12px;background:var(--surface-2) center/cover;border:0;padding:0;overflow:hidden}
+.thumb .rm{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:16px;line-height:26px;padding:0}
+.thumb .cv{position:absolute;left:4px;bottom:4px;background:var(--fav);color:#1b1d2b;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px}
+.thumb.add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1.5px dashed var(--line);background:var(--surface);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+.thumb.add b{font-size:26px;color:var(--accent)}
+.gallery{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px;border-radius:16px;margin-bottom:6px;scrollbar-width:none}
+.gallery::-webkit-scrollbar{display:none}
+.gallery button{flex:0 0 100%;height:230px;scroll-snap-align:center;border:0;padding:0;border-radius:16px;background:var(--surface-2) center/cover}
+.gcount{text-align:center;font-size:13px;color:var(--muted);margin-bottom:12px}
+.photo .nph{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px}
+.lightbox{background:rgba(0,0,0,.92);align-items:center}
+.lightbox img{max-width:100%;max-height:86vh;object-fit:contain}
+.lightbox .x{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px}
+.lightbox .lbn{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;color:#fff;font-size:14px}
+.lightbox .nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:24px}
 .err{color:var(--danger);font-size:14px;margin-top:10px;min-height:1em}
 
 /* Detail */
-.detail-photo{height:200px;border-radius:16px;background:var(--surface-2) center/cover;margin-bottom:14px}
 .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
 .kv:last-child{border-bottom:0}
 .kv b{font-variant-numeric:tabular-nums}
@@ -200,32 +212,18 @@ a{color:var(--accent);word-break:break-all}
     <label for="fNights">Noches <small>(aprox.)</small></label>
     <input type="number" id="fNights" min="1" max="10" inputmode="numeric" placeholder="Ej: 3">
 
-    <div class="group">
-      <h3>💶 Presupuesto por persona</h3>
-      <label>Vuelo + alojamiento <small>(rango en €)</small></label>
-      <div class="row2">
-        <input type="number" id="fMin" min="0" inputmode="numeric" placeholder="Mínimo">
-        <input type="number" id="fMax" min="0" inputmode="numeric" placeholder="Máximo">
-      </div>
-      <div class="row2">
-        <div><label for="fAct">Actividades <small>€</small></label><input type="number" id="fAct" min="0" inputmode="numeric" placeholder="Ej: 80"></div>
-        <div><label for="fFood">Comida y fiesta <small>€</small></label><input type="number" id="fFood" min="0" inputmode="numeric" placeholder="Ej: 150"></div>
-      </div>
-      <div class="total" id="fTotal">Total estimado: —</div>
+    <label>💶 Presupuesto aproximado por persona <small>(todo incluido)</small></label>
+    <div class="row2" style="align-items:center">
+      <input type="number" id="fMin" min="0" inputmode="numeric" placeholder="Entre… €">
+      <input type="number" id="fMax" min="0" inputmode="numeric" placeholder="…y €">
     </div>
 
     <label for="fLink">Enlace <small>(opcional: vuelos, alojamiento, actividad…)</small></label>
     <input type="url" id="fLink" maxlength="400" placeholder="https://…">
 
-    <label>Foto del destino <small>(opcional)</small></label>
-    <div class="photo-pick">
-      <div class="photo-prev" id="fPrev"></div>
-      <div style="display:flex;flex-direction:column;gap:6px;flex:1">
-        <label class="btn" style="margin:0;font-size:14px" for="fPhoto">📷 Elegir foto</label>
-        <button type="button" class="btn" style="font-size:14px;min-height:38px;padding:6px" id="fPhotoDel" hidden>Quitar foto</button>
-      </div>
-      <input type="file" id="fPhoto" accept="image/*" hidden>
-    </div>
+    <label>Fotos <small>(opcional, hasta 6 · la primera es la portada)</small></label>
+    <div class="thumbs" id="fThumbs"></div>
+    <input type="file" id="fPhoto" accept="image/*" multiple hidden>
 
     <div class="err" id="formErr"></div>
     <button class="btn primary" type="submit" id="formSubmit" style="width:100%;margin-top:6px">Publicar plan</button>
@@ -234,6 +232,8 @@ a{color:var(--accent);word-break:break-all}
 
 <!-- Detail -->
 <div class="overlay" id="detailOv"><div class="sheet" id="detail"></div></div>
+
+<div class="overlay lightbox" id="lbOv"><button class="x" data-close>×</button><button class="nav" id="lbPrev" style="left:10px">‹</button><img id="lbImg" alt=""><button class="nav" id="lbNext" style="right:10px">›</button><div class="lbn" id="lbN"></div></div>
 
 <div class="toast" id="toast"></div>
 
@@ -257,7 +257,10 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const keyOf = n => n.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "anon";
 const num = v => { const n = parseFloat(v); return isFinite(n) && n >= 0 ? Math.round(n) : null; };
-const img = p => typeof p.photo === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(p.photo) ? p.photo : null;
+const okImg = u => typeof u === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(u);
+const photosOf = p => (Array.isArray(p.photos) ? p.photos : (p.photo ? [p.photo] : [])).filter(okImg);
+const img = p => photosOf(p)[0] || null;
+const MAX_PHOTOS = 6;
 const eur = n => n.toLocaleString("es-ES") + " €";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const ls = {
@@ -272,11 +275,10 @@ function ago(ts){
 }
 function costInfo(p){
   const c = p.costs || {};
-  const extra = (c.act||0) + (c.food||0);
-  const lo = c.min ?? c.max, hi = c.max ?? c.min;
-  if (lo == null && !extra) return null;
-  const a = (lo||0) + extra, b = (hi||0) + extra;
-  return a === b ? `≈ ${eur(a)}` : `${eur(Math.min(a,b))} – ${eur(Math.max(a,b))}`;
+  let lo = c.min ?? c.max, hi = c.max ?? c.min;
+  if (lo == null) return null;
+  if (lo > hi) [lo, hi] = [hi, lo];
+  return lo === hi ? `≈ ${eur(lo)}` : `entre ${eur(lo)} y ${eur(hi)}`;
 }
 
 /* ---------- almacén: Firebase o modo prueba ---------- */
@@ -312,7 +314,7 @@ if (configured) {
 }
 
 /* ---------- estado ---------- */
-const S = { me: ls.get("despedida_nombre") || "", pinHash: ls.get("despedida_pin") || "", plans: [], votes: [], comments: [], tab: "plans", openId: null, editId: null, photo: null };
+const S = { me: ls.get("despedida_nombre") || "", pinHash: ls.get("despedida_pin") || "", plans: [], votes: [], comments: [], tab: "plans", openId: null, editId: null, photos: [] };
 const meKey = () => keyOf(S.me);
 
 store.watch("plans", d => { S.plans = d; render(); });
@@ -365,7 +367,7 @@ function renderPlans(){
       ? `<div class="photo" style="background-image:url('${img(p)}')">`
       : `<div class="photo empty"><span class="big">${esc((p.destination||"?")[0].toUpperCase())}</span>`;
     return `<article class="card">
-      ${photo}${fav ? `<span class="favbadge">⭐ Tu favorito</span>` : ""}<span class="dest">📍 ${esc(p.destination)}</span></div>
+      ${photo}${fav ? `<span class="favbadge">⭐ Tu favorito</span>` : ""}${photosOf(p).length > 1 ? `<span class="nph">📷 ${photosOf(p).length}</span>` : ""}<span class="dest">📍 ${esc(p.destination)}</span></div>
       <div class="body">
         <h2>${esc(p.title)}</h2>
         <div class="by">Propuesto por ${esc(p.authorName)} · ${ago(p.createdAt)}</div>
@@ -414,17 +416,17 @@ function renderDetail(){
   if (!p) { closeOv("#detailOv"); return; }
   const t = tallies()[p.id], mv = myVote();
   const liked = (mv.likes||[]).includes(p.id), fav = mv.fav === p.id;
-  const c = p.costs || {}, cost = costInfo(p);
+  const cost = costInfo(p);
   const mine = p.authorKey === meKey();
   const coms = S.comments.filter(x => x.planId === p.id).sort((a,b) => a.createdAt - b.createdAt);
   const draft = $("#comText")?.value || "";
-  const range = (c.min!=null || c.max!=null) ? (c.min!=null && c.max!=null && c.min!==c.max ? `${eur(c.min)} – ${eur(c.max)}` : eur(c.min ?? c.max)) : "—";
   const safeLink = p.link && /^https?:\/\//i.test(p.link) ? p.link : null;
 
   $("#detail").innerHTML = `
     <div class="grab"></div>
     <div class="sheet-head"><h2>${esc(p.title)}</h2><button class="x" data-close>×</button></div>
-    ${img(p) ? `<div class="detail-photo" style="background-image:url('${img(p)}')"></div>` : ""}
+    ${photosOf(p).length ? `<div class="gallery" id="gal">${photosOf(p).map((u,i) => `<button data-lb="${i}" style="background-image:url('${u}')" aria-label="Ver foto ${i+1}"></button>`).join("")}</div>
+      <div class="gcount" id="gcount">${photosOf(p).length > 1 ? `1 / ${photosOf(p).length} · desliza para ver más` : ""}</div>` : ""}
     <div class="chips" style="margin-top:0">
       <span class="chip">📍 ${esc(p.destination)}</span>
       ${p.nights ? `<span class="chip">🌙 ${p.nights} noche${p.nights>1?"s":""}</span>` : ""}
@@ -432,13 +434,7 @@ function renderDetail(){
     </div>
     <p class="fulltext">${esc(p.description)}</p>
 
-    <h3 class="section-t">💶 Presupuesto por persona</h3>
-    <div class="card" style="padding:4px 14px;margin:8px 0 0">
-      <div class="kv"><span>Vuelo + alojamiento</span><b>${range}</b></div>
-      <div class="kv"><span>Actividades</span><b>${c.act!=null ? eur(c.act) : "—"}</b></div>
-      <div class="kv"><span>Comida y fiesta</span><b>${c.food!=null ? eur(c.food) : "—"}</b></div>
-      <div class="kv"><span><b>Total estimado</b></span><b>${cost || "—"}</b></div>
-    </div>
+    <div class="total-line" style="margin-top:14px;font-weight:700;background:var(--accent-soft);border-radius:12px;padding:12px 14px">💶 Presupuesto aprox. por persona: ${cost || "sin indicar"}</div>
     ${safeLink ? `<p style="margin-top:12px">🔗 <a href="${esc(safeLink)}" target="_blank" rel="noopener">${esc(safeLink)}</a></p>` : ""}
 
     <div class="actions">
@@ -459,7 +455,20 @@ function renderDetail(){
       <button class="btn danger" data-delete="${p.id}">🗑️ Borrar</button>
     </div>` : ""}
   `;
+  const gal = $("#gal");
+  if (gal) gal.addEventListener("scroll", () => {
+    const n = photosOf(p).length; if (n < 2) return;
+    const i = Math.round(gal.scrollLeft / gal.clientWidth) + 1;
+    $("#gcount").textContent = `${Math.min(i,n)} / ${n}`;
+  }, { passive: true });
 }
+
+/* ---------- visor de fotos ---------- */
+const LB = { list: [], i: 0 };
+function showLb(){ $("#lbImg").src = LB.list[LB.i]; $("#lbN").textContent = `${LB.i+1} / ${LB.list.length}`;
+  $("#lbPrev").hidden = $("#lbNext").hidden = LB.list.length < 2; }
+$("#lbPrev").onclick = e => { e.stopPropagation(); LB.i = (LB.i - 1 + LB.list.length) % LB.list.length; showLb(); };
+$("#lbNext").onclick = e => { e.stopPropagation(); LB.i = (LB.i + 1) % LB.list.length; showLb(); };
 
 /* ---------- acciones ---------- */
 function needName(){ if (!S.me) { openOv("#welcome"); $("#nameInput").focus(); return true; } return false; }
@@ -489,6 +498,9 @@ function closeOv(sel){ $(sel).classList.remove("open"); if (sel==="#detailOv") S
 document.addEventListener("click", async e => {
   const b = e.target.closest("button,[data-open]"); if (!b) return;
   const d = b.dataset;
+  if (d.lb != null) { const p = S.plans.find(x => x.id === S.openId); if (!p) return; LB.list = photosOf(p); LB.i = +d.lb; showLb(); return openOv("#lbOv"); }
+  if (d.rmph != null) { S.photos.splice(+d.rmph, 1); return renderThumbs(); }
+  if (d.cover != null) { const [x] = S.photos.splice(+d.cover, 1); S.photos.unshift(x); return renderThumbs(); }
   if (d.like) return toggleLike(d.like);
   if (d.fav) return toggleFav(d.fav);
   if (d.open) { S.openId = d.open; renderDetail(); openOv("#detailOv"); $("#detail").scrollTop = 0; return; }
@@ -509,7 +521,7 @@ document.addEventListener("click", async e => {
     b.disabled = false; return;
   }
 });
-document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if (e.target === o && o.id !== "welcome") closeOv("#"+o.id); }));
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if ((e.target === o || (o.id === "lbOv" && e.target.id === "lbImg")) && o.id !== "welcome") closeOv("#"+o.id); }));
 
 $("#tabPlans").onclick = () => { S.tab = "plans"; render(); };
 $("#tabRank").onclick = () => { S.tab = "rank"; render(); };
@@ -555,13 +567,12 @@ $("#nameCancel").onclick = () => closeOv("#welcome");
 
 /* ---------- formulario ---------- */
 const F = id => $("#"+id);
-function updTotal(){
-  const p = { costs: { min: num(F("fMin").value), max: num(F("fMax").value), act: num(F("fAct").value), food: num(F("fFood").value) } };
-  F("fTotal").textContent = "Total estimado: " + (costInfo(p) || "—") + (costInfo(p) ? " por persona" : "");
+function renderThumbs(){
+  F("fThumbs").innerHTML = S.photos.map((u,i) => `<div class="thumb" style="background-image:url('${u}')">
+      ${i === 0 ? `<span class="cv">Portada</span>` : `<button type="button" class="cv" style="background:rgba(0,0,0,.6);color:#fff;border:0" data-cover="${i}">Hacer portada</button>`}
+      <button type="button" class="rm" data-rmph="${i}" aria-label="Quitar foto">×</button></div>`).join("")
+    + (S.photos.length < MAX_PHOTOS ? `<label class="thumb add" for="fPhoto"><b>＋</b>Añadir</label>` : "");
 }
-["fMin","fMax","fAct","fFood"].forEach(id => F(id).addEventListener("input", updTotal));
-function setPhoto(src){ S.photo = src; F("fPrev").style.backgroundImage = src ? `url('${src}')` : ""; F("fPhotoDel").hidden = !src; }
-F("fPhotoDel").onclick = () => setPhoto(null);
 
 function openForm(id){
   S.editId = id; const p = id ? S.plans.find(x => x.id === id) : null; const c = p?.costs || {};
@@ -569,21 +580,25 @@ function openForm(id){
   F("formSubmit").textContent = p ? "Guardar cambios" : "Publicar plan";
   F("fDest").value = p?.destination || ""; F("fTitle").value = p?.title || ""; F("fDesc").value = p?.description || "";
   F("fNights").value = p?.nights ?? ""; F("fMin").value = c.min ?? ""; F("fMax").value = c.max ?? "";
-  F("fAct").value = c.act ?? ""; F("fFood").value = c.food ?? ""; F("fLink").value = p?.link || "";
-  setPhoto(p?.photo || null); F("formErr").textContent = ""; updTotal();
+  F("fLink").value = p?.link || "";
+  S.photos = p ? [...photosOf(p)] : []; renderThumbs(); F("formErr").textContent = "";
   openOv("#formOv"); $("#planForm").scrollTop = 0;
 }
 
 F("fPhoto").addEventListener("change", async e => {
-  const file = e.target.files[0]; e.target.value = ""; if (!file) return;
-  try { setPhoto(await compress(file)); } catch { toast("No se pudo leer la foto"); }
+  const files = [...e.target.files]; e.target.value = ""; if (!files.length) return;
+  const room = MAX_PHOTOS - S.photos.length;
+  if (files.length > room) toast(`Máximo ${MAX_PHOTOS} fotos por plan`);
+  for (const f of files.slice(0, room)) {
+    try { S.photos.push(await compress(f)); renderThumbs(); } catch { toast("No se pudo leer una foto"); }
+  }
 });
 function compress(file){
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      let w = img.naturalWidth, h = img.naturalHeight, max = 1000, q = .72, out;
+      let w = img.naturalWidth, h = img.naturalHeight, max = 900, q = .7, out;
       const cv = document.createElement("canvas"), cx = cv.getContext("2d");
       do {
         const s = Math.min(1, max / Math.max(w, h));
@@ -591,7 +606,7 @@ function compress(file){
         cx.drawImage(img, 0, 0, cv.width, cv.height);
         out = cv.toDataURL("image/jpeg", q);
         max = Math.round(max*.8); q = Math.max(.5, q-.06);
-      } while (out.length > 300000 && max > 300);
+      } while (out.length > 130000 && max > 300);
       res(out);
     };
     img.onerror = rej; img.src = url;
@@ -608,9 +623,9 @@ $("#planForm").addEventListener("submit", async e => {
   const data = {
     destination: dest, title, description: desc,
     nights: num(F("fNights").value) || null,
-    costs: { min: mn, max: mx, act: num(F("fAct").value), food: num(F("fFood").value) },
+    costs: { min: mn, max: mx },
     link: link ? (/^https?:\/\//i.test(link) ? link : "https://" + link) : "",
-    photo: S.photo || null, updatedAt: Date.now(),
+    photos: S.photos.slice(0, MAX_PHOTOS), photo: null, updatedAt: Date.now(),
   };
   const btn = F("formSubmit"); btn.disabled = true;
   try {
