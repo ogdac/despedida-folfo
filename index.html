@@ -212,6 +212,14 @@ a{color:var(--accent);word-break:break-all}
 .card.tap{cursor:pointer;-webkit-user-select:none;user-select:none}
 .card.tap:active{transform:scale(.99)}
 .more{margin-left:auto;align-self:center;font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap}
+.lrow{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;margin-top:8px;align-items:center}
+.lrow .l-rm{width:34px;height:34px;font-size:16px}
+.links{display:flex;flex-direction:column;gap:8px}
+.lnk{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;text-decoration:none;color:var(--ink);background:var(--neu,#1b1917);box-shadow:5px 5px 12px rgba(0,0,0,.65),-4px -4px 10px rgba(255,240,215,.07);font-weight:600}
+.lnk:active{box-shadow:inset 4px 4px 9px rgba(0,0,0,.65),inset -3px -3px 8px rgba(255,240,215,.07)}
+.lnk .li{font-size:20px}
+.lnk .ln{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lnk .la{color:var(--accent);font-size:18px}
 /* ===== Tema: dorado oscuro + cristal + botones neumórficos ===== */
 :root,:root:not([x]){--bg:#121110;--surface:#1c1a18;--surface-2:#262320;--ink:#f3ece0;--muted:#a89f90;--line:#332f2a;
 --accent:#d4a857;--accent-ink:#1a1610;--accent-soft:#33291a;--like:#8fc9a3;--like-soft:#1d2c22;--fav:#d4a857;--fav-soft:#33291a;--hero:#0c0b0a;--hero-ink:#f3ece0;
@@ -330,8 +338,9 @@ input:focus,textarea:focus{box-shadow:inset 4px 4px 9px var(--neu-lo),inset -3px
       <input type="number" id="fMax" min="0" inputmode="numeric" placeholder="…y €">
     </div>
 
-    <label for="fLink">Enlace <small>(opcional: vuelos, alojamiento, actividad…)</small></label>
-    <input type="url" id="fLink" maxlength="400" placeholder="https://…">
+    <label>🔗 Enlaces <small>(opcional: vuelos, alojamiento, actividades…)</small></label>
+    <div id="fLinks"></div>
+    <button type="button" class="btn sm" id="fAddLink" style="margin-top:8px">＋ Añadir enlace</button>
 
     <label>Fotos <small>(opcional, hasta 6 · la primera es la portada)</small></label>
     <div class="thumbs" id="fThumbs"></div>
@@ -382,7 +391,29 @@ const num = v => { const n = parseFloat(v); return isFinite(n) && n >= 0 ? Math.
 const okImg = u => typeof u === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(u);
 const photosOf = p => (Array.isArray(p.photos) ? p.photos : (p.photo ? [p.photo] : [])).filter(okImg);
 const img = p => photosOf(p)[0] || null;
-const MAX_PHOTOS = 6;
+const MAX_PHOTOS = 6, MAX_LINKS = 5;
+const normUrl = u => { u = (u || "").trim(); if (!u) return ""; if (!/^https?:\/\//i.test(u)) u = "https://" + u; try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ""; } catch { return ""; } };
+const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+function autoName(u){
+  const h = hostOf(u); if (!h) return "Enlace";
+  const known = { airbnb:"Airbnb", booking:"Booking", ryanair:"Ryanair", vueling:"Vueling", iberia:"Iberia", easyjet:"easyJet", skyscanner:"Skyscanner", kayak:"Kayak", edreams:"eDreams", google:"Google", maps:"Google Maps", tripadvisor:"Tripadvisor", getyourguide:"GetYourGuide", civitatis:"Civitatis", expedia:"Expedia", hostelworld:"Hostelworld", instagram:"Instagram", tiktok:"TikTok", youtube:"YouTube" };
+  if (/google\.[^/]+$/.test(h) && /\/(travel\/)?flights/.test(u)) return "Google Flights";
+  if (/(^|\.)maps\.|google\.[^/]+$/.test(h) && /\/maps/.test(u)) return "Google Maps";
+  const base = h.split(".").slice(-2)[0];
+  return known[base] || (base.charAt(0).toUpperCase() + base.slice(1));
+}
+function linkIcon(u){
+  const h = hostOf(u) + new URL(u).pathname;
+  if (/airbnb|booking|hostelworld|hotel|vrbo|expedia/.test(h)) return "🏠";
+  if (/ryanair|vueling|iberia|easyjet|skyscanner|kayak|edreams|flights|vuelo|wizzair|lufthansa|tap/.test(h)) return "✈️";
+  if (/maps/.test(h)) return "📍";
+  if (/getyourguide|civitatis|tripadvisor|viator/.test(h)) return "🎟️";
+  if (/instagram|tiktok|youtube/.test(h)) return "📸";
+  return "🔗";
+}
+// enlaces de un plan: nuevos (nombre + url) y el antiguo campo único "link"
+const linksOf = p => (Array.isArray(p.links) ? p.links : (p.link ? [{ name: "", url: p.link }] : []))
+  .map(l => ({ url: normUrl(l.url), name: (l.name || "").trim() })).filter(l => l.url).map(l => ({ ...l, name: l.name || autoName(l.url) }));
 const eur = n => n.toLocaleString("es-ES") + " €";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const ls = {
@@ -556,7 +587,7 @@ function renderDetail(){
   const mine = canManage(p);
   const coms = S.comments.filter(x => x.planId === p.id).sort((a,b) => a.createdAt - b.createdAt);
   const draft = $("#comText")?.value || "";
-  const safeLink = p.link && /^https?:\/\//i.test(p.link) ? p.link : null;
+  const links = linksOf(p);
 
   $("#detail").innerHTML = `
     <div class="grab"></div>
@@ -571,7 +602,8 @@ function renderDetail(){
     <p class="fulltext">${esc(p.description)}</p>
 
     <div class="total-line" style="margin-top:14px;font-weight:700;background:var(--accent-soft);border-radius:12px;padding:12px 14px">✈️🏨 Vuelo + alojamiento por persona: ${cost || "sin indicar"}</div>
-    ${safeLink ? `<p style="margin-top:12px">🔗 <a href="${esc(safeLink)}" target="_blank" rel="noopener">${esc(safeLink)}</a></p>` : ""}
+    ${links.length ? `<h3 class="section-t">🔗 Enlaces</h3><p class="hint" style="margin:0 0 8px">Toca para ver el enlace</p>
+      <div class="links">${links.map(l => `<a class="lnk" href="${esc(l.url)}" target="_blank" rel="noopener"><span class="li">${linkIcon(l.url)}</span><span class="ln">${esc(l.name)}</span><span class="la">↗</span></a>`).join("")}</div>` : ""}
 
     <div class="actions">
       <button class="btn like ${liked?"on":""}" data-like="${p.id}">👍 ${liked?"Votado":"Votar"} <span class="count" data-cu="dl-${p.id}">${t.likes.length}</span></button>
@@ -867,6 +899,18 @@ $("#nameCancel").onclick = () => closeOv("#welcome");
 
 /* ---------- formulario ---------- */
 const F = id => $("#"+id);
+function readLinkRows(){ F("fLinks").querySelectorAll(".lrow").forEach((r, i) => { S.flinks[i] = { name: r.querySelector(".l-name").value, url: r.querySelector(".l-url").value }; }); }
+function renderLinkRows(){
+  F("fLinks").innerHTML = S.flinks.map((l, i) => `<div class="lrow">
+    <input type="text" class="l-name" maxlength="40" placeholder="Nombre (ej: Airbnb, Vuelo…)" value="${esc(l.name)}">
+    <input type="url" class="l-url" maxlength="600" inputmode="url" placeholder="Pega aquí el enlace" value="${esc(l.url)}">
+    ${S.flinks.length > 1 || l.url || l.name ? `<button type="button" class="x l-rm" data-rmlink="${i}" aria-label="Quitar enlace">×</button>` : ""}</div>`).join("");
+  F("fAddLink").hidden = S.flinks.length >= MAX_LINKS;
+}
+F("fAddLink").onclick = () => { readLinkRows(); if (S.flinks.length < MAX_LINKS) S.flinks.push({ name: "", url: "" }); renderLinkRows(); F("fLinks").querySelector(".lrow:last-child .l-name")?.focus(); };
+F("fLinks").addEventListener("click", e => { const b = e.target.closest("[data-rmlink]"); if (!b) return; readLinkRows(); S.flinks.splice(+b.dataset.rmlink, 1); if (!S.flinks.length) S.flinks.push({ name: "", url: "" }); renderLinkRows(); });
+// si pegan el enlace y no han puesto nombre, se rellena solo (Airbnb, Ryanair…)
+F("fLinks").addEventListener("change", e => { if (!e.target.classList.contains("l-url")) return; const row = e.target.closest(".lrow"), n = row.querySelector(".l-name"); const u = normUrl(e.target.value); if (u && !n.value.trim()) n.value = autoName(u); });
 function renderThumbs(){
   F("fThumbs").innerHTML = S.photos.map((u,i) => `<div class="thumb" style="background-image:url('${u}')">
       ${i === 0 ? `<span class="cv">Portada</span>` : `<button type="button" class="cv" style="background:rgba(0,0,0,.6);color:#fff;border:0" data-cover="${i}">Hacer portada</button>`}
@@ -880,7 +924,7 @@ function openForm(id){
   F("formSubmit").textContent = p ? "Guardar cambios" : "Publicar plan";
   F("fDest").value = p?.destination || ""; F("fTitle").value = p?.title || ""; F("fDesc").value = p?.description || "";
   F("fNights").value = p?.nights ?? ""; F("fMin").value = c.min ?? ""; F("fMax").value = c.max ?? "";
-  F("fLink").value = p?.link || "";
+  S.flinks = p ? linksOf(p).map(l => ({ ...l })) : []; if (!S.flinks.length) S.flinks.push({ name: "", url: "" }); renderLinkRows();
   S.photos = p ? [...photosOf(p)] : []; renderThumbs(); F("formErr").textContent = "";
   openOv("#formOv"); $("#planForm").scrollTop = 0;
 }
@@ -919,12 +963,13 @@ $("#planForm").addEventListener("submit", async e => {
   if (!dest || !title || !desc) { F("formErr").textContent = "Rellena destino, nombre del plan y qué haríamos."; return; }
   let mn = num(F("fMin").value), mx = num(F("fMax").value);
   if (mn != null && mx != null && mn > mx) [mn, mx] = [mx, mn];
-  const link = F("fLink").value.trim();
+  readLinkRows();
+  const links = S.flinks.map(l => ({ name: l.name.trim().slice(0, 40), url: normUrl(l.url) })).filter(l => l.url).slice(0, MAX_LINKS);
   const data = {
     destination: dest, title, description: desc,
     nights: num(F("fNights").value) || null,
     costs: { min: mn, max: mx },
-    link: link ? (/^https?:\/\//i.test(link) ? link : "https://" + link) : "",
+    links, link: "",
     photos: S.photos.slice(0, MAX_PHOTOS), photo: null, updatedAt: Date.now(),
   };
   const btn = F("formSubmit"); btn.disabled = true;
