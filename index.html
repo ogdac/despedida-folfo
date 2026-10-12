@@ -176,6 +176,20 @@ a{color:var(--accent);word-break:break-all}
 .owner-b{display:grid;grid-template-columns:1fr 1.3fr auto;gap:8px}
 .btn.sm{min-height:40px;padding:6px 12px;font-size:14px;border-radius:12px;white-space:nowrap}
 .btn.wa-soft{color:#3ee07f!important}
+/* ===== Efectos ===== */
+.hero h1 span{background:linear-gradient(110deg,#c99a45 0%,#c99a45 38%,#fff3d1 50%,#c99a45 62%,#c99a45 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:shine 3.6s ease-in-out infinite}
+@keyframes shine{0%{background-position:120% 0}55%,100%{background-position:-60% 0}}
+.spark{position:fixed;width:0;height:0;pointer-events:none;z-index:80}
+.spark i{position:absolute;left:-1px;top:-9px;width:2px;height:9px;border-radius:2px;background:linear-gradient(#ffe6a8,#d4a857);transform:rotate(var(--a)) translateY(-6px);transform-origin:1px 9px;animation:spk .6s ease-out forwards}
+@keyframes spk{0%{opacity:1;transform:rotate(var(--a)) translateY(-4px) scaleY(1)}100%{opacity:0;transform:rotate(var(--a)) translateY(-26px) scaleY(.3)}}
+.count.pop,[data-cu].pop{display:inline-block;animation:pop .45s ease-out}
+@keyframes pop{40%{transform:scale(1.45);color:var(--accent)}}
+.bar i{transition:width .9s cubic-bezier(.2,.8,.2,1)}
+body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;
+  background:radial-gradient(35% 30% at 25% 30%,rgba(212,168,87,.20),transparent 70%),radial-gradient(30% 28% at 75% 60%,rgba(170,110,45,.18),transparent 70%),radial-gradient(28% 25% at 50% 90%,rgba(230,190,110,.12),transparent 70%);
+  filter:blur(30px);animation:aurora 22s ease-in-out infinite alternate}
+@keyframes aurora{0%{transform:translate3d(-6%,-4%,0) rotate(0deg) scale(1)}50%{transform:translate3d(5%,3%,0) rotate(8deg) scale(1.1)}100%{transform:translate3d(-3%,6%,0) rotate(-6deg) scale(1.05)}}
+@media (prefers-reduced-motion: reduce){.hero h1 span,body::before{animation:none}}
 /* ===== Tema: dorado oscuro + cristal + botones neumórficos ===== */
 :root,:root:not([x]){--bg:#121110;--surface:#1c1a18;--surface-2:#262320;--ink:#f3ece0;--muted:#a89f90;--line:#332f2a;
 --accent:#d4a857;--accent-ink:#1a1610;--accent-soft:#33291a;--like:#8fc9a3;--like-soft:#1d2c22;--fav:#d4a857;--fav-soft:#33291a;--hero:#0c0b0a;--hero-ink:#f3ece0;
@@ -436,7 +450,7 @@ function render(){
   $("#tabRank").setAttribute("aria-selected", S.tab === "rank");
   $("#plansView").hidden = S.tab !== "plans";
   $("#rankView").hidden = S.tab !== "rank";
-  renderPlans(); renderRank();
+  renderPlans(); renderRank(); countUp();
   if (S.openId && document.activeElement?.id !== "comText") renderDetail();
 }
 
@@ -467,8 +481,8 @@ function renderPlans(){
           <span class="chip">💬 ${nCom}</span>
         </div>
         <div class="actions">
-          <button class="btn like ${liked?"on":""}" data-like="${p.id}">👍 ${liked?"Votado":"Votar"} <span class="count">${t[p.id].likes.length}</span></button>
-          <button class="btn fav ${fav?"on":""}" data-fav="${p.id}">⭐ Favorito <span class="count">${t[p.id].favs.length}</span></button>
+          <button class="btn like ${liked?"on":""}" data-like="${p.id}">👍 ${liked?"Votado":"Votar"} <span class="count" data-cu="l-${p.id}">${t[p.id].likes.length}</span></button>
+          <button class="btn fav ${fav?"on":""}" data-fav="${p.id}">⭐ Favorito <span class="count" data-cu="f-${p.id}">${t[p.id].favs.length}</span></button>
           <button class="btn wide" data-open="${p.id}">Ver detalles y opinar</button>
         </div>
         ${canManage(p) ? `<div class="owner"><span class="owner-l">${p.authorKey === meKey() ? "✨ Es tu plan" : "🛡️ Admin"}</span>
@@ -495,8 +509,8 @@ function renderRank(){
       <div class="pos">${medal}</div>
       <div class="info">
         <div class="t">${esc(p.title)}</div>
-        <div class="nums">📍 ${esc(p.destination)} · 👍 ${t[p.id].likes.length} · ⭐ ${t[p.id].favs.length}</div>
-        <div class="bar"><i style="width:${t[p.id].likes.length/max*100}%"></i></div>
+        <div class="nums">📍 ${esc(p.destination)} · 👍 <span data-cu="rl-${p.id}">${t[p.id].likes.length}</span> · ⭐ <span data-cu="rf-${p.id}">${t[p.id].favs.length}</span></div>
+        <div class="bar"><i data-w="${t[p.id].likes.length/max*100}" style="width:0%"></i></div>
       </div>
     </button>`;
   }).join("");
@@ -531,8 +545,8 @@ function renderDetail(){
     ${safeLink ? `<p style="margin-top:12px">🔗 <a href="${esc(safeLink)}" target="_blank" rel="noopener">${esc(safeLink)}</a></p>` : ""}
 
     <div class="actions">
-      <button class="btn like ${liked?"on":""}" data-like="${p.id}">👍 ${liked?"Votado":"Votar"} <span class="count">${t.likes.length}</span></button>
-      <button class="btn fav ${fav?"on":""}" data-fav="${p.id}">⭐ Favorito <span class="count">${t.favs.length}</span></button>
+      <button class="btn like ${liked?"on":""}" data-like="${p.id}">👍 ${liked?"Votado":"Votar"} <span class="count" data-cu="dl-${p.id}">${t.likes.length}</span></button>
+      <button class="btn fav ${fav?"on":""}" data-fav="${p.id}">⭐ Favorito <span class="count" data-cu="df-${p.id}">${t.favs.length}</span></button>
     </div>
     ${t.likes.length ? `<div class="people">${t.likes.map(n => `<span class="person ${t.favs.includes(n)?"f":""}">${t.favs.includes(n)?"⭐ ":""}${esc(n)}${isAdmin() ? ` <button class="del" data-unvote="${esc(keyOf(n))}" aria-label="Quitar voto">✕</button>` : ""}</span>`).join("")}</div>` : `<p class="hint" style="margin-top:8px">Nadie ha votado este plan todavía.</p>`}
 
@@ -550,6 +564,7 @@ function renderDetail(){
       <button class="btn danger" data-delete="${p.id}">🗑️ Borrar</button>
     </div>` : ""}
   `;
+  countUp($("#detail"));
   const gal = $("#gal");
   clearInterval(S.galTimer);
   if (!gal) return;
@@ -580,6 +595,31 @@ function showLb(){ $("#lbImg").src = LB.list[LB.i]; $("#lbN").textContent = `${L
   $("#lbPrev").hidden = $("#lbNext").hidden = LB.list.length < 2; }
 $("#lbPrev").onclick = e => { e.stopPropagation(); LB.i = (LB.i - 1 + LB.list.length) % LB.list.length; showLb(); };
 $("#lbNext").onclick = e => { e.stopPropagation(); LB.i = (LB.i + 1) % LB.list.length; showLb(); };
+
+/* ---------- efectos: números que suben, barras que crecen, chispas ---------- */
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const lastCounts = {};
+function countUp(root){
+  (root || document).querySelectorAll("[data-cu]").forEach(el => {
+    const k = el.dataset.cu, to = +el.textContent, from = k in lastCounts ? lastCounts[k] : (k[0] === "r" ? 0 : to);
+    lastCounts[k] = to;
+    if (reduceMotion || from === to) return;
+    const t0 = performance.now(), dur = 600;
+    el.textContent = from;
+    const step = now => { const q = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - q, 3);
+      el.textContent = Math.round(from + (to - from) * e); if (q < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+    if (to > from) { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+  });
+  requestAnimationFrame(() => (root || document).querySelectorAll(".bar i[data-w]").forEach(i => { i.style.width = i.dataset.w + "%"; }));
+}
+function spark(x, y){
+  if (reduceMotion) return;
+  const box = document.createElement("div"); box.className = "spark"; box.style.left = x + "px"; box.style.top = y + "px";
+  for (let i = 0; i < 10; i++) { const r = document.createElement("i"); r.style.setProperty("--a", (i * 36) + "deg"); box.appendChild(r); }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 650);
+}
+document.addEventListener("pointerdown", e => { const b = e.target.closest(".btn.like,.btn.fav"); if (b) spark(e.clientX, e.clientY); }, { passive: true });
 
 /* ---------- novedades desde la última visita ---------- */
 const seenKey = () => "despedida_visto_" + meKey();
