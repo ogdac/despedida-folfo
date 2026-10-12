@@ -611,7 +611,7 @@ function shareWhatsApp(id, isNew){
   if (lo != null && lo > hi) [lo, hi] = [hi, lo];
   const price = lo == null ? "" : (lo === hi ? `${lo.toLocaleString("es-ES")} €` : `${lo.toLocaleString("es-ES")}–${hi.toLocaleString("es-ES")} €`);
   const msg = (own ? `🎉 Mi propuesta para la despedida:` : `🎉 Propuesta de ${p.authorName} para la despedida:`) +
-    `\n*${p.title}* 📍 ${p.destination}` + (price ? `\n✈️🏨 ${price}` : "") + `\n👉 Vota aquí: ${url}`;
+    `\n*${p.title}* 📍 ${p.destination}` + (price ? `\n✈️🏨 ${lo === hi ? price : "Entre: " + price}` : "") + `\n👉 Vota aquí: ${url}`;
   $("#waMsg").textContent = msg;
   $("#waBtn").href = "https://wa.me/?text=" + encodeURIComponent(msg);
   openOv("#waOv");
