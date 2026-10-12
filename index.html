@@ -186,6 +186,29 @@ a{color:var(--accent);word-break:break-all}
 @keyframes pop{40%{transform:scale(1.45);color:var(--accent)}}
 .bar i{transition:width .9s cubic-bezier(.2,.8,.2,1)}
 @media (prefers-reduced-motion: reduce){.hero h1 span{animation:none}}
+/* 2 · tarjetas en cascada */
+.card.enter{animation:rise .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d)}
+@keyframes rise{from{opacity:0;transform:translateY(26px) scale(.98)}to{opacity:1;transform:none}}
+/* 3 · borde dorado en el plan ganador */
+.rank.lead{position:relative;overflow:hidden;isolation:isolate}
+.rank.lead::before{content:"";position:absolute;inset:-80%;z-index:-2;background:conic-gradient(from 0deg,transparent 0 62%,rgba(212,168,87,.15) 70%,#ffe6a8 80%,#d4a857 86%,transparent 96%);animation:spin 3.2s linear infinite}
+.rank.lead::after{content:"";position:absolute;inset:2px;z-index:-1;border-radius:14px;background:var(--neu)}
+@keyframes spin{to{transform:rotate(1turn)}}
+/* 4 · indicador deslizante de pestañas */
+.tabs{position:relative}
+.tab-ind{position:absolute;left:6px;top:6px;bottom:6px;width:calc(50% - 11px);border-radius:999px;background:var(--neu,#1b1917);
+  box-shadow:inset 4px 4px 9px rgba(0,0,0,.65),inset -3px -3px 8px rgba(255,240,215,.07);transition:transform .42s cubic-bezier(.3,1.3,.5,1);z-index:0}
+.tabs.on-rank .tab-ind{transform:translateX(calc(100% + 10px))}
+/* 5 · confeti */
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:90;overflow:hidden}
+.confetti i{position:absolute;top:-20px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translate(var(--dx),110vh) rotate(var(--r));opacity:.9}}
+/* 6 · foco de luz */
+.card{position:relative}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .35s;
+  background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),rgba(255,226,160,.20),transparent 70%)}
+.card.lit::after{opacity:1}
+@media (prefers-reduced-motion: reduce){.card.enter,.rank.lead::before{animation:none}.tab-ind{transition:none}}
 /* ===== Tema: dorado oscuro + cristal + botones neumórficos ===== */
 :root,:root:not([x]){--bg:#121110;--surface:#1c1a18;--surface-2:#262320;--ink:#f3ece0;--muted:#a89f90;--line:#332f2a;
 --accent:#d4a857;--accent-ink:#1a1610;--accent-soft:#33291a;--like:#8fc9a3;--like-soft:#1d2c22;--fav:#d4a857;--fav-soft:#33291a;--hero:#0c0b0a;--hero-ink:#f3ece0;
@@ -230,6 +253,10 @@ input:focus,textarea:focus{box-shadow:inset 4px 4px 9px var(--neu-lo),inset -3px
 .rank.lead{color:var(--accent)!important}
 #rankView .card{padding:4px 0}
 .chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+
+.tabs button,.tabs button[aria-selected=true]{background:transparent!important;box-shadow:none!important;position:relative;z-index:1}
+.tabs button[aria-selected=true]{color:var(--accent)!important}
+.rank.lead > *{position:relative}
 </style>
 </head>
 <body>
@@ -249,7 +276,7 @@ input:focus,textarea:focus{box-shadow:inset 4px 4px 9px var(--neu-lo),inset -3px
 
   <div id="news"></div>
 
-  <div class="tabs" role="tablist">
+  <div class="tabs" role="tablist"><span class="tab-ind" aria-hidden="true"></span>
     <button role="tab" id="tabPlans" aria-selected="true">Planes<span class="tbadge" id="planBadge" hidden></span></button>
     <button role="tab" id="tabRank" aria-selected="false">Ranking</button>
   </div>
@@ -414,6 +441,7 @@ const canManage = p => p.authorKey === meKey() || isAdmin();
 const isAdmin = () => !!S.me && meKey() === ADMIN.key && S.pinHash === ADMIN.pinHash;
 
 const loaded = { plans: false, votes: false, comments: false };
+S.enter = true;
 store.watch("plans", d => { S.plans = d; loaded.plans = true; render(); });
 store.watch("votes", d => { S.votes = d; loaded.votes = true; render(); });
 store.watch("comments", d => { S.comments = d; loaded.comments = true; render(); });
@@ -438,6 +466,7 @@ function ranked(){
 
 /* ---------- render ---------- */
 function render(){
+  document.querySelector(".tabs").classList.toggle("on-rank", S.tab === "rank");
   if (S.me && loaded.plans && loaded.votes && loaded.comments) { if (!S.newsDone) computeNews(); if (S.deepLink) openDeepLink(); }
   renderNews();
   $("#meBar").hidden = !S.me;
@@ -458,14 +487,15 @@ function renderPlans(){
   }
   const t = tallies(), mv = myVote();
   const list = [...S.plans].sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
-  el.innerHTML = list.map(p => {
+  const enter = S.enter; S.enter = false;
+  el.innerHTML = list.map((p, idx) => {
     const liked = (mv.likes||[]).includes(p.id), fav = mv.fav === p.id;
     const nCom = S.comments.filter(c => c.planId === p.id).length;
     const cost = costInfo(p);
     const photo = img(p)
       ? `<div class="photo" style="background-image:url('${img(p)}')">`
       : `<div class="photo empty"><span class="big">${esc((p.destination||"?")[0].toUpperCase())}</span>`;
-    return `<article class="card">
+    return `<article class="card${enter ? " enter" : ""}" style="--d:${Math.min(idx, 8) * 90}ms">
       ${photo}${fav ? `<span class="favbadge">⭐ Tu favorito</span>` : ""}${photosOf(p).length > 1 ? `<span class="nph">📷 ${photosOf(p).length}</span>` : ""}<span class="dest">📍 ${esc(p.destination)}</span></div>
       <div class="body">
         <h2>${esc(p.title)}</h2>
@@ -617,6 +647,21 @@ function spark(x, y){
 }
 document.addEventListener("pointerdown", e => { const b = e.target.closest(".btn.like,.btn.fav"); if (b) spark(e.clientX, e.clientY); }, { passive: true });
 
+function confetti(){
+  if (reduceMotion) return;
+  const cols = ["#d4a857","#ffe6a8","#b88d3e","#f3ece0","#e2bb6c"], box = document.createElement("div"); box.className = "confetti";
+  for (let i = 0; i < 70; i++) { const c = document.createElement("i");
+    c.style.cssText = `left:${Math.random()*100}%;background:${cols[i % cols.length]};--dx:${(Math.random()*2-1)*80}px;--r:${Math.random()*720-360}deg;animation-delay:${Math.random()*0.35}s;animation-duration:${1.6+Math.random()*1.1}s;width:${6+Math.random()*5}px;height:${9+Math.random()*7}px`;
+    box.appendChild(c); }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 3400);
+}
+// 6 foco de luz que sigue al dedo en las tarjetas
+const spot = e => { const c = e.target.closest && e.target.closest(".card"); if (!c) return; const r = c.getBoundingClientRect();
+  c.style.setProperty("--mx", (e.clientX - r.left) + "px"); c.style.setProperty("--my", (e.clientY - r.top) + "px"); c.classList.add("lit");
+  clearTimeout(c._lt); c._lt = setTimeout(() => c.classList.remove("lit"), 900); };
+document.addEventListener("pointermove", spot, { passive: true });
+document.addEventListener("pointerdown", spot, { passive: true });
+
 /* ---------- novedades desde la última visita ---------- */
 const seenKey = () => "despedida_visto_" + meKey();
 function leaderId(){ const t = tallies(), r = ranked(); return r.length && t[r[0].id].likes.length ? r[0].id : null; }
@@ -732,7 +777,7 @@ document.addEventListener("click", async e => {
 });
 document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if ((e.target === o || (o.id === "lbOv" && e.target.id === "lbImg")) && o.id !== "welcome") closeOv("#"+o.id); }));
 
-$("#tabPlans").onclick = () => { S.tab = "plans"; render(); };
+$("#tabPlans").onclick = () => { if (S.tab !== "plans") S.enter = true; S.tab = "plans"; render(); };
 $("#tabRank").onclick = () => { S.tab = "rank"; render(); };
 $("#changeName").onclick = () => {
   if (!confirm("¿Cerrar sesión en este móvil? Podrás volver a entrar con tu nombre y PIN.")) return;
@@ -843,7 +888,7 @@ $("#planForm").addEventListener("submit", async e => {
     if (S.editId) await store.set("plans", S.editId, data);
     else { newId = uid(); S.lastPlan = { ...data, id: newId }; await store.set("plans", newId, { ...data, authorName: S.me, authorKey: meKey(), createdAt: Date.now() }); }
     closeOv("#formOv"); S.tab = "plans"; render();
-    if (newId) shareWhatsApp(newId, true); else toast("Plan actualizado ✅");
+    if (newId) { confetti(); shareWhatsApp(newId, true); } else toast("Plan actualizado ✅");
   } catch(err){ console.error(err); F("formErr").textContent = "No se pudo guardar. Revisa la conexión y vuelve a intentarlo."; }
   btn.disabled = false;
 });
