@@ -184,8 +184,9 @@ a{color:var(--accent);word-break:break-all}
 .btn.sm{min-height:40px;padding:6px 12px;font-size:14px;border-radius:12px;white-space:nowrap}
 .btn.wa-soft{color:#3ee07f!important}
 /* ===== Efectos ===== */
-.hero h1 span{background:linear-gradient(110deg,#c99a45 0%,#c99a45 38%,#fff3d1 50%,#c99a45 62%,#c99a45 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:shine 3.6s ease-in-out infinite}
-@keyframes shine{0%{background-position:120% 0}55%,100%{background-position:-60% 0}}
+.hero h1 span{background:linear-gradient(110deg,#c99a45 0%,#c99a45 38%,#fff3d1 50%,#c99a45 62%,#c99a45 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;background-position:120% 0}
+.hero h1 span.shine{animation:shine 1.6s ease-in-out 1}
+@keyframes shine{0%{background-position:120% 0}100%{background-position:-60% 0}}
 .spark{position:fixed;width:0;height:0;pointer-events:none;z-index:80}
 .spark i{position:absolute;left:-1px;top:-9px;width:2px;height:9px;border-radius:2px;background:linear-gradient(#ffe6a8,#d4a857);transform:rotate(var(--a)) translateY(-6px);transform-origin:1px 9px;animation:spk .6s ease-out forwards}
 @keyframes spk{0%{opacity:1;transform:rotate(var(--a)) translateY(-4px) scaleY(1)}100%{opacity:0;transform:rotate(var(--a)) translateY(-26px) scaleY(.3)}}
@@ -302,6 +303,9 @@ h1,h2,h3{font-family:"Playfair Display",Georgia,serif}
 
 /* ===== Glass (superficies) ===== */
 body{background:#100f0e;background-image:radial-gradient(40% 30% at 85% 18%,rgba(212,168,87,.22),transparent 70%),radial-gradient(45% 35% at 10% 55%,rgba(150,95,40,.20),transparent 70%),radial-gradient(40% 30% at 80% 90%,rgba(212,168,87,.14),transparent 70%);background-attachment:fixed}
+/* rendimiento: el degradado va en una capa fija (no se repinta al hacer scroll) */
+body{background-image:none!important;background-attachment:scroll!important}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:radial-gradient(40% 30% at 85% 18%,rgba(212,168,87,.22),transparent 70%),radial-gradient(45% 35% at 10% 55%,rgba(150,95,40,.20),transparent 70%),radial-gradient(40% 30% at 80% 90%,rgba(212,168,87,.14),transparent 70%)}
 .hero{background:rgba(12,11,10,.55);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.07)}
 .card,.news,.tabs,.group,.comment,.wa-msg{background:rgba(255,255,255,.045)!important;backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);border:1px solid rgba(255,255,255,.09)!important;box-shadow:0 8px 32px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06)}
 .news{border-color:rgba(212,168,87,.45)!important}
@@ -333,13 +337,26 @@ input:focus,textarea:focus{box-shadow:inset 4px 4px 9px var(--neu-lo),inset -3px
 .tabs button,.tabs button[aria-selected=true]{background:transparent!important;box-shadow:none!important;position:relative;z-index:1}
 .tabs button[aria-selected=true]{color:var(--accent)!important}
 .rank.lead > *{position:relative}
+
+/* ===== Rendimiento: sin desenfoque en vivo (backdrop-filter), que era lo que más batería gastaba ===== */
+*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.hero{background:rgba(12,11,10,.6)!important}
+.sheet{background:rgba(22,20,18,.97)!important}
+.overlay{background:rgba(5,5,5,.82)!important}
+.photo .dest,.photo .nph{background:rgba(0,0,0,.55)!important}
+/* animaciones en la tarjeta gráfica, sin repintar */
+.sticker,.es-st,.wa-st{will-change:transform}
+/* la sombra de la pegatina va dentro de la imagen: así la animación no repinta */
+.sticker{filter:none!important;height:212px!important;right:-31px!important;top:-33px!important;transform-origin:50% calc(100% - 27px)!important}
+.rank.lead::before{will-change:transform}
+@media (prefers-reduced-motion: reduce){.hero h1 span.shine{animation:none}}
 </style>
 </head>
 <body>
 
 <header class="hero">
   <div class="in">
-    <img class="sticker" src="folfo.webp" alt="" aria-hidden="true">
+    <img class="sticker" src="folfo_sombra.webp" alt="" aria-hidden="true">
     <div class="eyebrow">Votación del grupo</div>
     <h1>Plan despedida<br>de <span>Folfo</span></h1>
     <div class="date">📅 Primera semana de julio</div>
@@ -518,7 +535,10 @@ if (configured) {
   const V = "10.12.2";
   const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
   const fs = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
-  const db = fs.getFirestore(initializeApp(firebaseConfig));
+  const app = initializeApp(firebaseConfig);
+  let db;
+  try { db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) }); }
+  catch (e) { console.warn("sin caché local", e); db = fs.getFirestore(app); }
   const watch = (col, cb) => fs.onSnapshot(fs.collection(db, col),
     snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
     err => { console.error(err); toast("Error de conexión con la base de datos"); });
@@ -647,7 +667,7 @@ function renderPlans(){
       ${photo}${fav ? `<span class="favbadge">⭐ Tu favorito</span>` : ""}${photosOf(p).length > 1 ? `<span class="nph">📷 ${photosOf(p).length}</span>` : ""}<span class="dest">📍 ${esc(p.destination)}</span></div>
       <div class="body">
         <h2>${esc(p.title)}</h2>
-        <div class="by">Propuesto por ${esc(p.authorName)} · ${ago(p.createdAt)}</div>
+        <div class="by">Propuesto por ${esc(p.authorName)} · <span data-ago="${p.createdAt||0}">${ago(p.createdAt)}</span></div>
         <p class="desc">${esc(p.description)}</p>
         <div class="chips">
           ${cost ? `<span class="chip money">✈️🏨 ${cost} /persona</span>` : ""}
@@ -836,6 +856,12 @@ setInterval(() => {
     ph.querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === next));
   });
 }, 2000);
+
+/* ---------- brillo de "Folfo": un destello cada 8 s ---------- */
+(() => { const el = document.querySelector(".hero h1 span"); if (!el || reduceMotion) return;
+  const run = () => { if (document.hidden) return; el.classList.remove("shine"); void el.offsetWidth; el.classList.add("shine"); };
+  el.addEventListener("animationend", () => el.classList.remove("shine"));
+  setTimeout(run, 800); setInterval(run, 8000); })();
 
 /* ---------- deslizar hacia abajo para cerrar ---------- */
 function swipeToClose(ov, panel, fromTopOnly){
@@ -1184,7 +1210,7 @@ else store.get("users", meKey()).then(u => {
   if (!u || u.pinHash !== S.pinHash) { S.me = ""; S.pinHash = ""; ls.set("despedida_nombre",""); ls.set("despedida_pin",""); render(); openOv("#welcome"); }
 }).catch(() => {});
 render();
-setInterval(() => { if (S.tab === "plans") renderPlans(); }, 60000);
+setInterval(() => { if (document.hidden) return; document.querySelectorAll("[data-ago]").forEach(e => { e.textContent = ago(+e.dataset.ago); }); }, 60000);
 </script>
 </body>
 </html>
