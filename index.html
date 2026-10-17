@@ -643,10 +643,11 @@ function renderPlans(){
   }
   const t = tallies(), mv = myVote();
   const lo = p => { const c = p.costs || {}; const v = c.min ?? c.max; return v == null ? Infinity : v; };
+  const sk = p => p.sortAt || p.createdAt || 0;   // el admin puede subir un plan arriba sin cambiar su fecha real
   const sorters = {
-    votes: (a, b) => t[b.id].likes.length - t[a.id].likes.length || t[b.id].favs.length - t[a.id].favs.length || (b.createdAt||0) - (a.createdAt||0),
-    cheap: (a, b) => lo(a) - lo(b) || (b.createdAt||0) - (a.createdAt||0),
-    new:   (a, b) => (b.createdAt||0) - (a.createdAt||0),
+    votes: (a, b) => t[b.id].likes.length - t[a.id].likes.length || t[b.id].favs.length - t[a.id].favs.length || sk(b) - sk(a),
+    cheap: (a, b) => lo(a) - lo(b) || sk(b) - sk(a),
+    new:   (a, b) => sk(b) - sk(a),
   };
   const list = [...S.plans].sort(sorters[S.sort] || sorters.new);
   const wp = winnerPlan();
@@ -769,6 +770,7 @@ function renderDetail(){
       <button class="btn wide wa-soft" data-share="${p.id}">📲 Compartir en el grupo de WhatsApp</button>
       <button class="btn" data-edit="${p.id}">✏️ Editar</button>
       <button class="btn danger" data-delete="${p.id}">🗑️ Borrar</button>
+      ${isAdmin() ? `<button class="btn wide gold" data-bump="${p.id}">⬆️ Poner el primero</button>${p.sortAt ? `<button class="btn wide" data-unbump="${p.id}">↩️ Volver a su posición original</button>` : ""}` : ""}
       ${isAdmin() ? (winnerPlan()?.id === p.id ? `<button class="btn wide" data-reopen="1">↩️ Reabrir votación</button>` : `<button class="btn wide gold" data-winner="${p.id}">🏆 Declarar ganador</button>`) : ""}
     </div>` : ""}
   `;
@@ -1011,6 +1013,15 @@ document.addEventListener("click", async e => {
     const p = S.plans.find(x => x.id === d.winner); if (!p) return;
     if (!confirm(`¿Declarar ganador «${p.title}»? Se cerrará la votación para todos.`)) return;
     try { await store.set("config", "estado", { winner: p.id, at: Date.now(), by: S.me }); closeOv("#detailOv"); } catch(e){ toast("No se pudo guardar"); }
+    return;
+  }
+  if (d.bump && isAdmin()) {
+    try { await store.set("plans", d.bump, { sortAt: Date.now() }); closeOv("#detailOv"); S.sort = "new"; ls.set("despedida_orden", "new"); S.enter = true; render(); scrollTo({ top: 0, behavior: "smooth" }); toast("⬆️ Plan movido arriba (orden «Nuevos»)"); }
+    catch(e){ toast("No se pudo mover el plan"); }
+    return;
+  }
+  if (d.unbump && isAdmin()) {
+    try { await store.set("plans", d.unbump, { sortAt: null }); toast("↩️ El plan vuelve a su posición por fecha"); } catch(e){ toast("No se pudo guardar"); }
     return;
   }
   if (d.reopen && isAdmin()) {
