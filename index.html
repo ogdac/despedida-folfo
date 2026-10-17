@@ -668,7 +668,7 @@ function renderPlans(){
       ${photo}${fav ? `<span class="favbadge">⭐ Tu favorito</span>` : ""}${photosOf(p).length > 1 ? `<span class="nph">📷 ${photosOf(p).length}</span>` : ""}<span class="dest">📍 ${esc(p.destination)}</span></div>
       <div class="body">
         <h2>${esc(p.title)}</h2>
-        <div class="by">Propuesto por ${esc(p.authorName)} · <span data-ago="${p.createdAt||0}">${ago(p.createdAt)}</span></div>
+        <div class="by">Propuesto por ${esc(p.authorName)} · <span data-ago="${p.sortAt||p.createdAt||0}">${ago(p.sortAt||p.createdAt)}</span></div>
         <p class="desc">${esc(p.description)}</p>
         <div class="chips">
           ${cost ? `<span class="chip money">✈️🏨 ${cost} /persona</span>` : ""}
