@@ -180,6 +180,12 @@ a{color:var(--accent);word-break:break-all}
 
 .owner{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
 .owner-l{display:block;font-size:13px;font-weight:600;color:var(--accent);margin-bottom:10px}
+.owner-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.owner-top .owner-l{margin-bottom:0}
+.eye{border:0;border-radius:999px;padding:7px 12px;font:600 13px Inter,sans-serif;color:var(--ink);background:var(--neu,#1b1917);box-shadow:4px 4px 10px rgba(0,0,0,.65),-3px -3px 8px rgba(255,240,215,.07)}
+.eye.off{color:#e8a39a;box-shadow:inset 4px 4px 9px rgba(0,0,0,.65),inset -3px -3px 8px rgba(255,240,215,.07)}
+.card.is-hidden .photo,.card.is-hidden h2,.card.is-hidden .desc,.card.is-hidden .chips,.card.is-hidden .by{opacity:.45}
+.hidbadge{position:absolute;top:12px;left:12px;z-index:2;background:rgba(0,0,0,.7);color:#f3ece0;font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;border:1px solid rgba(232,163,154,.6)}
 .owner-b{display:grid;grid-template-columns:1fr 1.3fr auto;gap:8px}
 .btn.sm{min-height:40px;padding:6px 12px;font-size:14px;border-radius:12px;white-space:nowrap}
 .btn.wa-soft{color:#3ee07f!important}
@@ -591,7 +597,10 @@ const isAdmin = () => !!S.me && meKey() === ADMIN.key && S.pinHash === ADMIN.pin
 const loaded = { plans: false, votes: false, comments: false, profiles: false };
 S.enter = true;
 S.sort = ls.get("despedida_orden") || "new";
-store.watch("plans", d => { S.plans = d; loaded.plans = true; render(); });
+S.allPlans = [];
+// planes ocultos: solo el admin los ve
+function syncPlans(){ S.plans = isAdmin() ? S.allPlans : S.allPlans.filter(p => !p.hidden); }
+store.watch("plans", d => { S.allPlans = d; syncPlans(); loaded.plans = true; render(); });
 store.watch("votes", d => { S.votes = d; loaded.votes = true; render(); });
 store.watch("comments", d => { S.comments = d; loaded.comments = true; render(); });
 store.watch("users", d => { S.users = d; render(); });
@@ -618,6 +627,7 @@ function ranked(){
 
 /* ---------- render ---------- */
 function render(){
+  syncPlans();
   document.querySelector(".tabs").classList.toggle("on-rank", S.tab === "rank");
   if (S.me && loaded.plans && loaded.votes && loaded.comments) { if (!S.newsDone) computeNews(); if (S.deepLink) openDeepLink(); }
   renderNews();
@@ -664,8 +674,8 @@ function renderPlans(){
       : img(p)
       ? `<div class="photo" style="background-image:url('${img(p)}')">`
       : `<div class="photo empty"><span class="big">${esc((p.destination||"?")[0].toUpperCase())}</span>`;
-    return `<article class="card tap${enter ? " enter" : ""}" data-open="${p.id}" style="--d:${Math.min(idx, 8) * 90}ms">
-      ${photo}${fav ? `<span class="favbadge">⭐ Tu favorito</span>` : ""}${photosOf(p).length > 1 ? `<span class="nph">📷 ${photosOf(p).length}</span>` : ""}<span class="dest">📍 ${esc(p.destination)}</span></div>
+    return `<article class="card tap${enter ? " enter" : ""}${p.hidden ? " is-hidden" : ""}" data-open="${p.id}" style="--d:${Math.min(idx, 8) * 90}ms">
+      ${photo}${p.hidden ? `<span class="hidbadge">🙈 Oculto · solo lo ves tú</span>` : fav ? `<span class="favbadge">⭐ Tu favorito</span>` : ""}${photosOf(p).length > 1 ? `<span class="nph">📷 ${photosOf(p).length}</span>` : ""}<span class="dest">📍 ${esc(p.destination)}</span></div>
       <div class="body">
         <h2>${esc(p.title)}</h2>
         <div class="by">Propuesto por ${esc(p.authorName)} · <span data-ago="${p.sortAt||p.createdAt||0}">${ago(p.sortAt||p.createdAt)}</span></div>
@@ -680,7 +690,7 @@ function renderPlans(){
           <button class="btn like ${liked?"on":""}${closed()?" off":""}" data-like="${p.id}">👍 ${liked?"Votado":"Votar"} <span class="count" data-cu="l-${p.id}">${t[p.id].likes.length}</span></button>
           <button class="btn fav ${fav?"on":""}${closed()?" off":""}" data-fav="${p.id}">⭐ Favorito <span class="count" data-cu="f-${p.id}">${t[p.id].favs.length}</span></button>
         </div>
-        ${canManage(p) ? `<div class="owner"><span class="owner-l">${p.authorKey === meKey() ? "✨ Es tu plan" : "🛡️ Admin"}</span>
+        ${canManage(p) ? `<div class="owner"><div class="owner-top"><span class="owner-l">${p.authorKey === meKey() && !isAdmin() ? "✨ Es tu plan" : "🛡️ Admin"}</span>${isAdmin() ? `<button class="eye ${p.hidden ? "off" : ""}" data-hide="${p.id}" aria-pressed="${!!p.hidden}" aria-label="${p.hidden ? "Mostrar a todos" : "Ocultar a los demás"}">${p.hidden ? "🙈 Oculto" : "👁️ Visible"}</button>` : ""}</div>
           <div class="owner-b"><button class="btn sm" data-edit="${p.id}" aria-label="Editar">✏️ Editar</button>
           <button class="btn sm" data-share="${p.id}" aria-label="Compartir">📲 Compartir</button>
           <button class="btn sm danger" data-delete="${p.id}" aria-label="Borrar">🗑️</button></div></div>` : ""}
@@ -710,7 +720,8 @@ function renderRank(){
       </div>
     </button>`;
   }).join("");
-  const votedKeys = S.votes.filter(v => (v.likes||[]).length || v.fav);
+  const vis = new Set(S.plans.map(p => p.id));
+  const votedKeys = S.votes.filter(v => (v.likes||[]).some(id => vis.has(id)) || (v.fav && vis.has(v.fav)));
   const vk = new Set(votedKeys.map(v => v.id));
   const missing = S.users.filter(u => !vk.has(u.id)).sort((a, b) => (a.name||"").localeCompare(b.name||""));
   const names = arr => arr.length > 1 ? arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1] : (arr[0] || "");
@@ -770,6 +781,7 @@ function renderDetail(){
       <button class="btn wide wa-soft" data-share="${p.id}">📲 Compartir en el grupo de WhatsApp</button>
       <button class="btn" data-edit="${p.id}">✏️ Editar</button>
       <button class="btn danger" data-delete="${p.id}">🗑️ Borrar</button>
+      ${isAdmin() ? `<button class="btn wide" data-hide="${p.id}">${p.hidden ? "👁️ Mostrar a todos" : "🙈 Ocultar a los demás"}</button>` : ""}
       ${isAdmin() ? `<button class="btn wide gold" data-bump="${p.id}">⬆️ Poner el primero</button>${p.sortAt ? `<button class="btn wide" data-unbump="${p.id}">↩️ Volver a su posición original</button>` : ""}` : ""}
       ${isAdmin() ? (winnerPlan()?.id === p.id ? `<button class="btn wide" data-reopen="1">↩️ Reabrir votación</button>` : `<button class="btn wide gold" data-winner="${p.id}">🏆 Declarar ganador</button>`) : ""}
     </div>` : ""}
@@ -1013,6 +1025,12 @@ document.addEventListener("click", async e => {
     const p = S.plans.find(x => x.id === d.winner); if (!p) return;
     if (!confirm(`¿Declarar ganador «${p.title}»? Se cerrará la votación para todos.`)) return;
     try { await store.set("config", "estado", { winner: p.id, at: Date.now(), by: S.me }); closeOv("#detailOv"); } catch(e){ toast("No se pudo guardar"); }
+    return;
+  }
+  if (d.hide && isAdmin()) {
+    const p = S.allPlans.find(x => x.id === d.hide); if (!p) return;
+    try { await store.set("plans", p.id, { hidden: !p.hidden }); toast(p.hidden ? "👁️ Plan visible para todos" : "🙈 Plan oculto: solo lo ves tú"); }
+    catch(e){ toast("No se pudo guardar"); }
     return;
   }
   if (d.bump && isAdmin()) {
